@@ -1,0 +1,20 @@
+export const Brand = {
+  name: 'Barani Hydraulics',
+  fullName: 'Barani Hydraulics India Private Limited',
+  tagline: 'Reporting System',
+  colors: {
+    primary: '#0056FF',
+    primaryDark: '#0041CC',
+    accent: '#E85D04',
+    accentLight: '#FF7A2E',
+    background: '#F4F6F9',
+    card: '#FFFFFF',
+    text: '#1A1A2E',
+    textSecondary: '#6B7280',
+    border: '#E5E7EB',
+    success: '#16A34A',
+    warning: '#F59E0B',
+    error: '#DC2626',
+    white: '#FFFFFF',
+  },
+} as const;

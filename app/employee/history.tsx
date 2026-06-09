@@ -1,0 +1,199 @@
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, Text, View, FlatList, ActivityIndicator } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+
+import { Brand } from '@/constants/brand';
+import { useAuth } from '@/contexts/auth-context';
+import { supabase } from '@/lib/supabase';
+
+type Task = {
+  id: number;
+  report_date: string;
+  task_name: string;
+  work_description: string;
+  hours_worked: number;
+  status: string;
+};
+
+export default function HistoryScreen() {
+  const { user } = useAuth();
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchTasks();
+  }, [user]);
+
+  const fetchTasks = async () => {
+    if (!user) return;
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('daily_reports')
+        .select('*')
+        .eq('employee_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setTasks(data || []);
+    } catch (err) {
+      console.error('Error fetching tasks:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'submitted': return '#3B82F6'; // blue
+      case 'approved': return '#10B981'; // green
+      case 'rejected': return '#EF4444'; // red
+      case 'modification_requested': return '#F59E0B'; // orange
+      default: return '#6B7280'; // gray for draft
+    }
+  };
+
+  const renderTask = ({ item }: { item: Task }) => (
+    <View style={styles.taskCard}>
+      <View style={styles.taskHeader}>
+        <Text style={styles.taskName}>{item.task_name}</Text>
+        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}>
+          <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
+            {item.status.replace('_', ' ').toUpperCase()}
+          </Text>
+        </View>
+      </View>
+      <Text style={styles.taskDesc}>{item.work_description}</Text>
+      <View style={styles.taskFooter}>
+        <View style={styles.footerItem}>
+          <Ionicons name="calendar-outline" size={14} color="#6B7280" />
+          <Text style={styles.footerText}>{item.report_date}</Text>
+        </View>
+        <View style={styles.footerItem}>
+          <Ionicons name="time-outline" size={14} color="#6B7280" />
+          <Text style={styles.footerText}>{item.hours_worked} hours</Text>
+        </View>
+      </View>
+    </View>
+  );
+
+  return (
+    <View style={styles.card}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Task History</Text>
+        <Text style={styles.subtitle}>Your past submitted reports</Text>
+      </View>
+      
+      {loading ? (
+        <ActivityIndicator size="large" color={Brand.colors.primary} style={styles.loader} />
+      ) : tasks.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Ionicons name="document-text-outline" size={48} color="#D1D5DB" />
+          <Text style={styles.emptyText}>No tasks found</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={tasks}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={renderTask}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  card: {
+    backgroundColor: Brand.colors.card,
+    borderRadius: 12,
+    padding: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 15,
+    elevation: 3,
+    maxWidth: 800,
+    flex: 1, // Needed so FlatList can scroll within it
+  },
+  header: {
+    marginBottom: 24,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: Brand.colors.primaryDark,
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 15,
+    color: Brand.colors.textSecondary,
+  },
+  loader: {
+    marginTop: 40,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  emptyText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  listContent: {
+    paddingBottom: 20,
+  },
+  taskCard: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    padding: 20,
+    marginBottom: 16,
+  },
+  taskHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  taskName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Brand.colors.text,
+    flex: 1,
+    marginRight: 16,
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  taskDesc: {
+    fontSize: 14,
+    color: '#4B5563',
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  taskFooter: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  footerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  footerText: {
+    fontSize: 13,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+});
