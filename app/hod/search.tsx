@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState, useEffect } from 'react';
 import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useRouter } from 'expo-router';
 
 import { Brand } from '@/constants/brand';
 import { useAuth } from '@/contexts/auth-context';
@@ -9,6 +10,7 @@ import { User } from '@/types/auth';
 
 export default function EmployeeSearch() {
   const { user } = useAuth();
+  const router = useRouter();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
@@ -17,6 +19,7 @@ export default function EmployeeSearch() {
     if (user?.department) {
       fetchEmployees('');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const fetchEmployees = async (searchQuery: string) => {
@@ -101,7 +104,10 @@ export default function EmployeeSearch() {
                 <Text style={styles.detailValue}>{item.designation}</Text>
               </View>
             </View>
-            <TouchableOpacity style={styles.viewBtn}>
+            <TouchableOpacity 
+              style={styles.viewBtn} 
+              onPress={() => router.push({ pathname: '/hod', params: { searchEmployeeId: item.employeeId } })}
+            >
               <Text style={styles.viewBtnText}>View Monthly Report</Text>
             </TouchableOpacity>
           </View>

@@ -110,7 +110,7 @@ export function LoginForm() {
           </Pressable>
 
           <View style={styles.registerPrompt}>
-            <Text style={styles.registerText}>Don't have an account? </Text>
+            <Text style={styles.registerText}>Don&apos;t have an account? </Text>
             <Pressable onPress={() => router.push('/register')}>
               <Text style={styles.registerLink}>Register</Text>
             </Pressable>

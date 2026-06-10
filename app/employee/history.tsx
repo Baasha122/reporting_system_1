@@ -22,6 +22,7 @@ export default function HistoryScreen() {
 
   useEffect(() => {
     fetchTasks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const fetchTasks = async () => {

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 
 import { Brand } from '@/constants/brand';
 import { fetchReports } from '@/services/reports-api';
@@ -13,6 +12,7 @@ export default function ReportsScreen() {
 
   useEffect(() => {
     loadReports();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
 
   const loadReports = async () => {

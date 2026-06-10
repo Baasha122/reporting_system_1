@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
 import React, { useState, useEffect, useMemo } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View, Alert, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator, ScrollView } from 'react-native';
 
 import { Brand } from '@/constants/brand';
 import { supabase } from '@/lib/supabase';
@@ -14,6 +14,30 @@ export default function EmployeeDashboard() {
   const [endTime, setEndTime] = useState('10:00');
   const [duration, setDuration] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  const [departmentProjects, setDepartmentProjects] = useState<any[]>([]);
+  const [selectedProject, setSelectedProject] = useState('');
+
+  useEffect(() => {
+    if (user?.department) {
+      fetchProjects();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  const fetchProjects = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('department', user?.department);
+        
+      if (error) throw error;
+      setDepartmentProjects(data || []);
+    } catch (err) {
+      console.error("Failed to load projects", err);
+    }
+  };
 
   // Generate time options
   const timeOptions = useMemo(() => {
@@ -62,6 +86,11 @@ export default function EmployeeDashboard() {
       return;
     }
 
+    if (!selectedProject) {
+      alert('Please select a project');
+      return;
+    }
+
     if (!duration.trim()) {
       alert('Please enter a valid duration');
       return;
@@ -84,11 +113,17 @@ export default function EmployeeDashboard() {
         return;
       }
 
+      const selectedProjectObj = departmentProjects.find(p => p.projectid === selectedProject);
+      const taskNameToSave = selectedProjectObj ? selectedProjectObj.projectname : (description.split('\n')[0].substring(0, 50) || 'Task');
+      const descToSave = selectedProjectObj 
+        ? `Project ID: ${selectedProjectObj.projectid}\nCustomer: ${selectedProjectObj.customername}\n\nTask:\n${description}`
+        : description;
+
       const { error } = await supabase.from('daily_reports').insert({
         employee_id: user?.id,
         report_date: new Date().toISOString().split('T')[0],
-        task_name: description.split('\n')[0].substring(0, 50) || 'Task',
-        work_description: description,
+        task_name: taskNameToSave,
+        work_description: descToSave,
         hours_worked: Number(hoursWorked.toFixed(2)),
         completion_percentage: 100,
         status: 'submitted'
@@ -97,7 +132,7 @@ export default function EmployeeDashboard() {
       if (error) throw error;
       
       alert('Task saved successfully!');
-      setDescription('');
+      handleAddNewTask();
     } catch (err: any) {
       alert('Failed to save task: ' + err.message);
     } finally {
@@ -105,14 +140,62 @@ export default function EmployeeDashboard() {
     }
   };
 
+  const handleAddNewTask = () => {
+    setDescription('');
+    setStartTime('09:00');
+    setEndTime('10:00');
+    setDuration('');
+    setSelectedProject('');
+  };
+
   return (
-    <View style={styles.card}>
-      <View style={styles.header}>
-        <View style={styles.headerIndicator} />
-        <Text style={styles.headerTitle}>NEW TASK</Text>
-      </View>
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
+      <View style={styles.card}>
+        <View style={styles.header}>
+          <View style={styles.headerIndicator} />
+          <Text style={styles.headerTitle}>NEW TASK</Text>
+        </View>
 
       <View style={styles.form}>
+        {/* Project Selection */}
+        <View style={styles.fieldRow}>
+          <View style={styles.labelContainer}>
+            <Ionicons name="briefcase-outline" size={20} color={Brand.colors.primary} />
+            <Text style={styles.label}>Project</Text>
+          </View>
+          <View style={styles.inputContainerRow}>
+            <View style={[styles.inputWrapper, { padding: 0 }]}>
+              <Picker
+                selectedValue={selectedProject}
+                onValueChange={(val) => setSelectedProject(val)}
+                style={styles.picker}
+              >
+                <Picker.Item label="Select Project" value="" color="#9CA3AF" />
+                {departmentProjects.map(proj => (
+                  <Picker.Item key={proj.id} label={`${proj.projectid} - ${proj.projectname}`} value={proj.projectid} />
+                ))}
+              </Picker>
+            </View>
+          </View>
+        </View>
+
+        {/* Customer Name (Read Only) */}
+        <View style={styles.fieldRow}>
+          <View style={styles.labelContainer}>
+            <Ionicons name="business-outline" size={20} color={Brand.colors.primary} />
+            <Text style={styles.label}>Customer</Text>
+          </View>
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={[styles.input, { color: '#6B7280', backgroundColor: '#F3F4F6', width: '100%' }]}
+              placeholder="Auto-filled from project"
+              placeholderTextColor="#9CA3AF"
+              value={departmentProjects.find(p => p.projectid === selectedProject)?.customername || ''}
+              editable={false}
+            />
+          </View>
+        </View>
+
         {/* Task Description */}
         <View style={styles.fieldRow}>
           <View style={styles.labelContainer}>
@@ -216,7 +299,7 @@ export default function EmployeeDashboard() {
               <Text style={styles.saveButtonText}>Save Task</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.addButton}>
+            <TouchableOpacity style={styles.addButton} onPress={handleAddNewTask}>
               <Ionicons name="add" size={18} color={Brand.colors.primary} />
               <Text style={styles.addButtonText}>Add New Task</Text>
             </TouchableOpacity>
@@ -225,10 +308,17 @@ export default function EmployeeDashboard() {
 
       </View>
     </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  contentContainer: {
+    paddingBottom: 40,
+  },
   card: {
     backgroundColor: Brand.colors.card,
     borderRadius: 12,
@@ -386,5 +476,61 @@ const styles = StyleSheet.create({
     color: Brand.colors.primary,
     fontSize: 14,
     fontWeight: '600',
+  },
+  emptyCard: {
+    backgroundColor: Brand.colors.card,
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Brand.colors.border,
+    marginBottom: 16,
+  },
+  emptyText: {
+    color: Brand.colors.textSecondary,
+    fontSize: 13,
+  },
+  projectsScroll: {
+    marginBottom: 16,
+    marginHorizontal: -20,
+    paddingHorizontal: 20,
+  },
+  projectCard: {
+    backgroundColor: Brand.colors.card,
+    borderRadius: 12,
+    padding: 16,
+    width: 200,
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: Brand.colors.border,
+    borderLeftWidth: 4,
+    borderLeftColor: Brand.colors.primary,
+  },
+  projectHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  projectId: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Brand.colors.primary,
+    backgroundColor: '#F0F5FF',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  projectName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Brand.colors.text,
+    marginBottom: 4,
+  },
+  customerName: {
+    fontSize: 12,
+    color: Brand.colors.textSecondary,
   },
 });

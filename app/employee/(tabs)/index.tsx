@@ -1,12 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ScrollView, StyleSheet, Text, View, ActivityIndicator } from 'react-native';
 
 import { useLogout } from '@/components/auth/auth-guard';
 import { DashboardHeader } from '@/components/dashboard/dashboard-header';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { Brand } from '@/constants/brand';
 import { useAuth } from '@/contexts/auth-context';
+import { supabase } from '@/lib/supabase';
 
 const RECENT_ACTIVITY = [
   { id: '1', title: 'Hydraulic Press Assembly', status: 'In Progress', time: '2 hours ago' },
@@ -17,6 +18,34 @@ const RECENT_ACTIVITY = [
 export default function EmployeeDashboard() {
   const { user } = useAuth();
   const handleLogout = useLogout();
+  
+  const [departmentProjects, setDepartmentProjects] = useState<any[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(true);
+
+  useEffect(() => {
+    if (user?.department) {
+      fetchProjects();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  const fetchProjects = async () => {
+    try {
+      setLoadingProjects(true);
+      const { data, error } = await supabase
+        .from('department_projects')
+        .select('*')
+        .eq('department', user?.department)
+        .order('created_at', { ascending: false });
+        
+      if (error) throw error;
+      setDepartmentProjects(data || []);
+    } catch (err) {
+      console.error("Failed to load projects", err);
+    } finally {
+      setLoadingProjects(false);
+    }
+  };
 
   if (!user) return null;
 
@@ -45,6 +74,28 @@ export default function EmployeeDashboard() {
             <Text style={styles.actionText}>Submit Report</Text>
           </View>
         </View>
+
+        <Text style={styles.sectionTitle}>Department Projects</Text>
+        {loadingProjects ? (
+          <ActivityIndicator size="small" color={Brand.colors.primary} style={{ marginVertical: 20 }} />
+        ) : departmentProjects.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyText}>No projects currently active.</Text>
+          </View>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.projectsScroll}>
+            {departmentProjects.map((proj) => (
+              <View key={proj.id} style={styles.projectCard}>
+                <View style={styles.projectHeader}>
+                  <Text style={styles.projectId}>{proj.project_id}</Text>
+                  <Ionicons name="briefcase-outline" size={16} color={Brand.colors.primary} />
+                </View>
+                <Text style={styles.projectName} numberOfLines={1}>{proj.project_name}</Text>
+                <Text style={styles.customerName} numberOfLines={1}>{proj.customer_name}</Text>
+              </View>
+            ))}
+          </ScrollView>
+        )}
 
         <Text style={styles.sectionTitle}>Recent Activity</Text>
         {RECENT_ACTIVITY.map((item) => (
@@ -139,5 +190,61 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 24,
+  },
+  emptyCard: {
+    backgroundColor: Brand.colors.card,
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Brand.colors.border,
+    marginBottom: 16,
+  },
+  emptyText: {
+    color: Brand.colors.textSecondary,
+    fontSize: 13,
+  },
+  projectsScroll: {
+    marginBottom: 16,
+    marginHorizontal: -20,
+    paddingHorizontal: 20,
+  },
+  projectCard: {
+    backgroundColor: Brand.colors.card,
+    borderRadius: 12,
+    padding: 16,
+    width: 200,
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: Brand.colors.border,
+    borderLeftWidth: 4,
+    borderLeftColor: Brand.colors.primary,
+  },
+  projectHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  projectId: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Brand.colors.primary,
+    backgroundColor: '#F0F5FF',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  projectName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Brand.colors.text,
+    marginBottom: 4,
+  },
+  customerName: {
+    fontSize: 12,
+    color: Brand.colors.textSecondary,
   },
 });

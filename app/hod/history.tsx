@@ -4,90 +4,73 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { Brand } from '@/constants/brand';
 import { supabase } from '@/lib/supabase';
-import { DailyReport } from '@/types/report';
+import { useAuth } from '@/contexts/auth-context';
 
-export default function HistoryScreen() {
-  const [history, setHistory] = useState<DailyReport[]>([]);
+export default function ClientHistoryScreen() {
+  const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
   useEffect(() => {
-    loadHistory();
-  }, []);
+    if (user?.department) {
+      loadHistory();
+    }
+  }, [user]);
 
   const loadHistory = async () => {
     try {
+      setLoading(true);
+      // Fetch all projects (assuming RLS handles filtering, or just get all for now since 'department' column might not exist)
       const { data, error } = await supabase
-        .from('daily_reports')
-        .select(`
-          *,
-          employee:profiles(id, name)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(50);
+        .from('projects')
+        .select('*')
+        .order('id', { ascending: false }); // order by id instead of created_at to avoid column name mismatch
 
       if (error) throw error;
       
-      setHistory((data || []).map(item => ({
-        ...item,
-        employee: Array.isArray(item.employee) ? item.employee[0] : item.employee
-      })) as DailyReport[]);
+      setHistory(data || []);
     } catch (error) {
-      console.error('Error loading history:', error);
+      console.error('Error loading client history:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const getActionIcon = (status: string) => {
-    switch (status) {
-      case 'approved': return { name: 'checkmark-circle', color: Brand.colors.success };
-      case 'rejected': return { name: 'close-circle', color: Brand.colors.error };
-      case 'submitted': return { name: 'arrow-up-circle', color: Brand.colors.warning };
-      default: return { name: 'document-text', color: Brand.colors.textSecondary };
-    }
-  };
-
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Audit History</Text>
+      <Text style={styles.title}>Client History</Text>
       
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={Brand.colors.primary} />
         </View>
       ) : (
-        <View style={styles.timelineCard}>
+        <View style={styles.card}>
           <FlatList
             data={history}
             keyExtractor={(item) => item.id.toString()}
             ListEmptyComponent={
-              <Text style={styles.emptyText}>No history records found.</Text>
+              <Text style={styles.emptyText}>No client records found.</Text>
             }
-            renderItem={({ item, index }) => {
-              const icon = getActionIcon(item.status);
-              return (
-                <View style={styles.timelineItem}>
-                  {/* Timeline connector line */}
-                  {index !== history.length - 1 && <View style={styles.timelineLine} />}
-                  
-                  <View style={styles.iconContainer}>
-                    <Ionicons name={icon.name as any} size={24} color={icon.color} />
-                  </View>
-                  
-                  <View style={styles.content}>
-                    <View style={styles.contentHeader}>
-                      <Text style={styles.actionText}>
-                        Report <Text style={{fontWeight: '700'}}>#{item.id}</Text> was marked as {item.status}
-                      </Text>
-                      <Text style={styles.timeText}>{new Date(item.created_at).toLocaleDateString()}</Text>
-                    </View>
-                    <Text style={styles.detailsText}>
-                      By {item.employee?.name || 'Unknown User'} for task: "{item.task_name}"
-                    </Text>
-                  </View>
+            renderItem={({ item }) => (
+              <View style={styles.itemRow}>
+                <View style={styles.iconContainer}>
+                  <Ionicons name="briefcase" size={24} color={Brand.colors.primary} />
                 </View>
-              );
-            }}
+                <View style={styles.content}>
+                  <View style={styles.contentHeader}>
+                    <Text style={styles.projectName}>{item.projectname}</Text>
+                    <Text style={styles.timeText}>{item.datetime ? new Date(item.datetime).toLocaleDateString() : ''}</Text>
+                  </View>
+                  <Text style={styles.detailsText}>
+                    Project ID: <Text style={{fontWeight: '700'}}>{item.projectid}</Text>
+                  </Text>
+                  <Text style={styles.detailsText}>
+                    Client/Customer: {item.customername}
+                  </Text>
+                </View>
+              </View>
+            )}
           />
         </View>
       )}
@@ -99,7 +82,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   title: { fontSize: 24, fontWeight: '700', color: Brand.colors.text, marginBottom: 24 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  timelineCard: {
+  card: {
     backgroundColor: '#FFF',
     borderRadius: 12,
     borderWidth: 1,
@@ -107,38 +90,34 @@ const styles = StyleSheet.create({
     padding: 24,
     flex: 1,
   },
-  timelineItem: {
+  itemRow: {
     flexDirection: 'row',
-    marginBottom: 24,
-    position: 'relative',
-  },
-  timelineLine: {
-    position: 'absolute',
-    left: 11, // half of icon width
-    top: 24,
-    bottom: -24,
-    width: 2,
-    backgroundColor: '#E5E7EB',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
   },
   iconContainer: {
-    width: 24,
-    height: 24,
-    backgroundColor: '#FFF',
-    zIndex: 1,
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: '#F0F5FF',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 16,
   },
   content: {
     flex: 1,
-    paddingTop: 2,
+    justifyContent: 'center',
   },
   contentHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginBottom: 4,
   },
-  actionText: {
-    fontSize: 14,
+  projectName: {
+    fontSize: 16,
+    fontWeight: '600',
     color: Brand.colors.text,
   },
   timeText: {
@@ -146,8 +125,9 @@ const styles = StyleSheet.create({
     color: Brand.colors.textSecondary,
   },
   detailsText: {
-    fontSize: 13,
+    fontSize: 14,
     color: Brand.colors.textSecondary,
+    marginTop: 2,
   },
   emptyText: {
     textAlign: 'center',

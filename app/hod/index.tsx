@@ -5,24 +5,68 @@ import * as Sharing from 'expo-sharing';
 import React, { useState, useEffect } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator, Platform, Alert } from 'react-native';
 import * as XLSX from 'xlsx';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 
 import { Brand } from '@/constants/brand';
 import { useAuth } from '@/contexts/auth-context';
 import { supabase } from '@/lib/supabase';
 
-const TABLE_DATA = [
-  { date: '01-06-2026', task: 'API Development', hours: '8', status: 'Completed' },
-  { date: '02-06-2026', task: 'UI Testing', hours: '6', status: 'Completed' },
-  { date: '03-06-2026', task: 'Bug Fixing', hours: '7', status: 'Completed' },
-  { date: '04-06-2026', task: 'Database Optimization', hours: '5', status: 'Completed' },
-  { date: '05-06-2026', task: 'Code Review', hours: '4', status: 'In Progress' },
-  { date: '06-06-2026', task: 'Documentation', hours: '3', status: 'In Progress' },
-];
-
 export default function HodDashboard() {
   const { user } = useAuth();
   const router = useRouter();
+  const params = useLocalSearchParams();
+  
+  // Project Creation
+  const [newProject, setNewProject] = useState({
+    projectId: '',
+    projectName: '',
+    customerName: '',
+  });
+  const [isSubmittingProject, setIsSubmittingProject] = useState(false);
+
+  const handleCreateProject = async () => {
+    if (!newProject.projectId || !newProject.projectName) {
+      if (Platform.OS === 'web') { alert("Please fill all project details."); } else { Alert.alert("Error", "Please fill all project details."); }
+      return;
+    }
+    
+    setIsSubmittingProject(true);
+    try {
+      // Check for duplicates
+      const { data: existing } = await supabase
+        .from('projects')
+        .select('projectid')
+        .eq('projectid', newProject.projectId);
+        
+      if (existing && existing.length > 0) {
+        const msg = "Error: Project ID must be unique. This ID already exists!";
+        if (Platform.OS === 'web') { alert(msg); } else { Alert.alert("Error", msg); }
+        setIsSubmittingProject(false);
+        return;
+      }
+
+      const { error } = await supabase.from('projects').insert([
+        {
+          projectid: newProject.projectId,
+          projectname: newProject.projectName,
+          customername: newProject.customerName,
+          department: user?.department || '',
+          status: 'onGoing',
+        }
+      ]);
+      
+      if (error) throw error;
+      
+      const successMsg = "Project created successfully!";
+      if (Platform.OS === 'web') { alert(successMsg); } else { Alert.alert("Success", successMsg); }
+      setNewProject({ projectId: '', projectName: '', customerName: '' });
+    } catch (err: any) {
+      const errMsg = "Failed to create project: " + err.message;
+      if (Platform.OS === 'web') { alert(errMsg); } else { Alert.alert("Error", errMsg); }
+    } finally {
+      setIsSubmittingProject(false);
+    }
+  };
   
   // Department Stats
   const [stats, setStats] = useState({
@@ -42,7 +86,18 @@ export default function HodDashboard() {
 
   useEffect(() => {
     fetchDepartmentStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  // Handle incoming search requests from the search screen
+  useEffect(() => {
+    if (params.searchEmployeeId && departmentEmployees.length > 0) {
+      const incomingId = params.searchEmployeeId as string;
+      setSearchId(incomingId);
+      handleSearch(incomingId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.searchEmployeeId, departmentEmployees]);
 
   const fetchDepartmentStats = async () => {
     if (!user?.department) return;
@@ -89,15 +144,16 @@ export default function HodDashboard() {
     }
   };
 
-  const handleSearch = async () => {
-    if (!searchId.trim() || !user?.department) return;
+  const handleSearch = async (overrideId?: string) => {
+    const idToSearch = typeof overrideId === 'string' ? overrideId : searchId;
+    if (!idToSearch.trim() || !user?.department) return;
     setIsSearching(true);
     try {
       // Find employee
       const { data: emp, error: empErr } = await supabase
         .from('profiles')
         .select('*')
-        .eq('employee_id', searchId.trim().toUpperCase())
+        .eq('employee_id', idToSearch.trim().toUpperCase())
         .eq('department', user.department)
         .single();
         
@@ -329,12 +385,60 @@ export default function HodDashboard() {
               ))}
             </Picker>
           </View>
-          <TouchableOpacity style={styles.searchBtn} onPress={handleSearch} disabled={isSearching}>
+          <TouchableOpacity style={styles.searchBtn} onPress={() => handleSearch()} disabled={isSearching}>
             {isSearching ? <ActivityIndicator size="small" color="#FFF" /> : <Ionicons name="search" size={16} color="#FFF" />}
             <Text style={styles.searchBtnText}>Search</Text>
           </TouchableOpacity>
         </View>
         <Text style={styles.searchHint}>ⓘ Enter Employee ID to view monthly task report</Text>
+      </View>
+
+      {/* Create Project Section */}
+      <View style={[styles.sectionHeader, { justifyContent: 'space-between', marginTop: 10 }]}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={styles.headerIndicator} />
+          <Text style={styles.headerTitle}>CREATE DEPARTMENT PROJECT</Text>
+        </View>
+      </View>
+      <View style={styles.createProjectCard}>
+        <View style={styles.projectInputRow}>
+          <View style={styles.projectInputGroup}>
+            <Text style={styles.inputLabel}>Project ID</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="e.g. PRJ-101"
+              value={newProject.projectId}
+              onChangeText={(text) => setNewProject({...newProject, projectId: text})}
+            />
+          </View>
+          <View style={styles.projectInputGroup}>
+            <Text style={styles.inputLabel}>Project Name</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="e.g. Website Redesign"
+              value={newProject.projectName}
+              onChangeText={(text) => setNewProject({...newProject, projectName: text})}
+            />
+          </View>
+          <View style={styles.projectInputGroup}>
+            <Text style={styles.inputLabel}>Customer Name</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="e.g. Acme Corp"
+              value={newProject.customerName}
+              onChangeText={(text) => setNewProject({...newProject, customerName: text})}
+            />
+          </View>
+          <View style={{ justifyContent: 'flex-end', paddingBottom: 2 }}>
+            <TouchableOpacity 
+              style={[styles.saveBtn, isSubmittingProject && styles.saveBtnDisabled]} 
+              onPress={handleCreateProject} 
+              disabled={isSubmittingProject}
+            >
+              {isSubmittingProject ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.saveBtnText}>Save</Text>}
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
 
       {/* Employee Monthly Report */}
@@ -497,6 +601,53 @@ export default function HodDashboard() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  createProjectCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 8,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 24,
+  },
+  projectInputRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+  },
+  projectInputGroup: {
+    flex: 1,
+    minWidth: 150,
+  },
+  inputLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#4B5563',
+    marginBottom: 6,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    height: 40,
+    fontSize: 14,
+  },
+  saveBtn: {
+    backgroundColor: '#0056FF',
+    height: 40,
+    paddingHorizontal: 24,
+    borderRadius: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  saveBtnDisabled: {
+    opacity: 0.7,
+  },
+  saveBtnText: {
+    color: '#FFF',
+    fontWeight: '600',
+    fontSize: 14,
   },
   statsRow: {
     flexDirection: 'row',
