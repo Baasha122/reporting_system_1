@@ -1,4 +1,3 @@
-import { Picker } from '@react-native-picker/picker';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -17,6 +16,7 @@ import {
 
 import { Brand } from '@/constants/brand';
 import { getDashboardRoute, useAuth } from '@/contexts/auth-context';
+import { CustomPicker } from '@/components/ui/custom-picker';
 
 export function RegisterForm() {
   const { register } = useAuth();
@@ -107,22 +107,23 @@ export function RegisterForm() {
           </View>
           
           <View style={styles.fieldGroup}>
-            <View style={styles.pickerContainer}>
-              <Picker
+            <View style={[styles.pickerContainer, { height: 48 }]}>
+              <CustomPicker
                 selectedValue={department}
                 onValueChange={(itemValue) => setDepartment(itemValue)}
                 style={styles.picker}
-              >
-                <Picker.Item label="Select Department" value="" color="#9ca3af" />
-                <Picker.Item label="Machine shop" value="Machine shop" />
-                <Picker.Item label="Assembly" value="Assembly" />
-                <Picker.Item label="Production" value="Production" />
-                <Picker.Item label="Electrical" value="Electrical" />
-                <Picker.Item label="Fabrication" value="Fabrication" />
-                <Picker.Item label="Design" value="Design" />
-                <Picker.Item label="HR" value="HR" />
-                <Picker.Item label="maintenance" value="maintenance" />
-              </Picker>
+                placeholder="Select Department"
+                items={[
+                  { label: "Machine shop", value: "Machine shop" },
+                  { label: "Assembly", value: "Assembly" },
+                  { label: "Production", value: "Production" },
+                  { label: "Electrical", value: "Electrical" },
+                  { label: "Fabrication", value: "Fabrication" },
+                  { label: "Design", value: "Design" },
+                  { label: "HR", value: "HR" },
+                  { label: "maintenance", value: "maintenance" }
+                ]}
+              />
             </View>
           </View>
 
@@ -232,6 +233,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#111827',
     backgroundColor: '#ffffff',
+    height: 50,
   },
   pickerContainer: {
     width: '100%',
@@ -240,11 +242,16 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#ffffff',
     overflow: 'hidden',
+    height: 50,
   },
   picker: {
     width: '100%',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    height: 50,
+    minHeight: 50,
+    margin: 0,
+    paddingTop: 0,
+    paddingBottom: 0,
+    paddingHorizontal: 8,
     fontSize: 15,
     color: '#111827',
   },

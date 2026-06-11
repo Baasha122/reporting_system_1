@@ -1,72 +1,22 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Picker } from '@react-native-picker/picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import React, { useState, useEffect } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator, Platform, Alert } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator, Platform, Alert, SafeAreaView } from 'react-native';
 import * as XLSX from 'xlsx';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
 import { Brand } from '@/constants/brand';
 import { useAuth } from '@/contexts/auth-context';
 import { supabase } from '@/lib/supabase';
+import { CustomPicker } from '@/components/ui/custom-picker';
 
 export default function HodDashboard() {
   const { user } = useAuth();
   const router = useRouter();
   const params = useLocalSearchParams();
   
-  // Project Creation
-  const [newProject, setNewProject] = useState({
-    projectId: '',
-    projectName: '',
-    customerName: '',
-  });
-  const [isSubmittingProject, setIsSubmittingProject] = useState(false);
 
-  const handleCreateProject = async () => {
-    if (!newProject.projectId || !newProject.projectName) {
-      if (Platform.OS === 'web') { alert("Please fill all project details."); } else { Alert.alert("Error", "Please fill all project details."); }
-      return;
-    }
-    
-    setIsSubmittingProject(true);
-    try {
-      // Check for duplicates
-      const { data: existing } = await supabase
-        .from('projects')
-        .select('projectid')
-        .eq('projectid', newProject.projectId);
-        
-      if (existing && existing.length > 0) {
-        const msg = "Error: Project ID must be unique. This ID already exists!";
-        if (Platform.OS === 'web') { alert(msg); } else { Alert.alert("Error", msg); }
-        setIsSubmittingProject(false);
-        return;
-      }
-
-      const { error } = await supabase.from('projects').insert([
-        {
-          projectid: newProject.projectId,
-          projectname: newProject.projectName,
-          customername: newProject.customerName,
-          department: user?.department || '',
-          status: 'onGoing',
-        }
-      ]);
-      
-      if (error) throw error;
-      
-      const successMsg = "Project created successfully!";
-      if (Platform.OS === 'web') { alert(successMsg); } else { Alert.alert("Success", successMsg); }
-      setNewProject({ projectId: '', projectName: '', customerName: '' });
-    } catch (err: any) {
-      const errMsg = "Failed to create project: " + err.message;
-      if (Platform.OS === 'web') { alert(errMsg); } else { Alert.alert("Error", errMsg); }
-    } finally {
-      setIsSubmittingProject(false);
-    }
-  };
   
   // Department Stats
   const [stats, setStats] = useState({
@@ -187,6 +137,35 @@ export default function HodDashboard() {
   const searchedSubmitted = employeeReports.length;
   const searchedPending = employeeReports.filter(r => r.status === 'submitted').length;
   const searchedTotalHours = employeeReports.reduce((sum, r) => sum + Number(r.hours_worked), 0);
+
+  const getWeeklyEfficiency = () => {
+    if (!employeeReports || employeeReports.length === 0) return [];
+    
+    // Group reports by week
+    const weeks: Record<string, { taskCount: number, targetTasks: number }> = {};
+    
+    employeeReports.forEach(report => {
+      if (!report.report_date) return;
+      const date = new Date(report.report_date);
+      const startOfWeek = new Date(date);
+      startOfWeek.setDate(date.getDate() - date.getDay() + 1); // Monday
+      const weekKey = startOfWeek.toISOString().split('T')[0];
+      
+      if (!weeks[weekKey]) {
+        weeks[weekKey] = { taskCount: 0, targetTasks: 30 };
+      }
+      weeks[weekKey].taskCount += 1;
+    });
+    
+    return Object.keys(weeks).sort((a,b) => b.localeCompare(a)).map(key => {
+      const eff = Math.round((weeks[key].taskCount / weeks[key].targetTasks) * 100);
+      return {
+        weekStart: key,
+        efficiency: eff > 100 ? 100 : eff,
+        count: weeks[key].taskCount
+      };
+    });
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -311,7 +290,12 @@ export default function HodDashboard() {
   };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#F4F6F9' }}>
+      <ScrollView 
+        style={styles.container} 
+        contentContainerStyle={{ paddingBottom: 120 }}
+        showsVerticalScrollIndicator={false}
+      >
       {/* Top Stats Row */}
       <View style={styles.statsRow}>
         <View style={styles.statCard}>
@@ -373,17 +357,17 @@ export default function HodDashboard() {
       <View style={styles.searchCard}>
         <Text style={styles.searchLabel}>Employee ID</Text>
         <View style={styles.searchRow}>
-          <View style={[styles.searchInput, { paddingHorizontal: 0 }]}>
-            <Picker
+          <View style={[styles.searchInput, { paddingHorizontal: 0, minHeight: 50 }]}>
+            <CustomPicker
               selectedValue={searchId}
               onValueChange={(itemValue) => setSearchId(itemValue)}
-              style={{ width: '100%', height: 44 }}
-            >
-              <Picker.Item label="Select Employee" value="" color="#9CA3AF" />
-              {departmentEmployees.map((emp) => (
-                <Picker.Item key={emp.employee_id} label={`${emp.name} (${emp.employee_id})`} value={emp.employee_id} />
-              ))}
-            </Picker>
+              style={{ width: '100%', height: 50, minHeight: 50, margin: 0, paddingTop: 0, paddingBottom: 0, paddingHorizontal: 8, fontSize: 15 }}
+              placeholder="Select Employee"
+              items={departmentEmployees.map((emp) => ({
+                label: `${emp.name} (${emp.employee_id})`,
+                value: emp.employee_id
+              }))}
+            />
           </View>
           <TouchableOpacity style={styles.searchBtn} onPress={() => handleSearch()} disabled={isSearching}>
             {isSearching ? <ActivityIndicator size="small" color="#FFF" /> : <Ionicons name="search" size={16} color="#FFF" />}
@@ -393,53 +377,6 @@ export default function HodDashboard() {
         <Text style={styles.searchHint}>ⓘ Enter Employee ID to view monthly task report</Text>
       </View>
 
-      {/* Create Project Section */}
-      <View style={[styles.sectionHeader, { justifyContent: 'space-between', marginTop: 10 }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <View style={styles.headerIndicator} />
-          <Text style={styles.headerTitle}>CREATE DEPARTMENT PROJECT</Text>
-        </View>
-      </View>
-      <View style={styles.createProjectCard}>
-        <View style={styles.projectInputRow}>
-          <View style={styles.projectInputGroup}>
-            <Text style={styles.inputLabel}>Project ID</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="e.g. PRJ-101"
-              value={newProject.projectId}
-              onChangeText={(text) => setNewProject({...newProject, projectId: text})}
-            />
-          </View>
-          <View style={styles.projectInputGroup}>
-            <Text style={styles.inputLabel}>Project Name</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="e.g. Website Redesign"
-              value={newProject.projectName}
-              onChangeText={(text) => setNewProject({...newProject, projectName: text})}
-            />
-          </View>
-          <View style={styles.projectInputGroup}>
-            <Text style={styles.inputLabel}>Customer Name</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="e.g. Acme Corp"
-              value={newProject.customerName}
-              onChangeText={(text) => setNewProject({...newProject, customerName: text})}
-            />
-          </View>
-          <View style={{ justifyContent: 'flex-end', paddingBottom: 2 }}>
-            <TouchableOpacity 
-              style={[styles.saveBtn, isSubmittingProject && styles.saveBtnDisabled]} 
-              onPress={handleCreateProject} 
-              disabled={isSubmittingProject}
-            >
-              {isSubmittingProject ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.saveBtnText}>Save</Text>}
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
 
       {/* Employee Monthly Report */}
       {searchedEmployee && (
@@ -450,6 +387,54 @@ export default function HodDashboard() {
           </View>
 
           <View style={styles.reportRow}>
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryTitle}>MONTHLY SUMMARY</Text>
+              <View style={styles.monthBadge}>
+                <Ionicons name="calendar-outline" size={16} color="#0056FF" />
+                <Text style={styles.monthBadgeText}>{currentMonthName}</Text>
+              </View>
+              <View style={styles.summaryList}>
+                <View style={styles.summaryItem}>
+                  <View style={styles.summaryIconRow}><Ionicons name="calendar-outline" size={16} color="#6B7280" /><Text style={styles.summaryLabel}>Total Working Days</Text></View>
+                  <Text style={styles.summaryVal}>22</Text>
+                </View>
+                <View style={styles.summaryItem}>
+                  <View style={styles.summaryIconRow}><Ionicons name="clipboard-outline" size={16} color="#6B7280" /><Text style={styles.summaryLabel}>Reports Submitted</Text></View>
+                  <Text style={styles.summaryVal}>{searchedSubmitted}</Text>
+                </View>
+                <View style={styles.summaryItem}>
+                  <View style={styles.summaryIconRow}><Ionicons name="time-outline" size={16} color="#6B7280" /><Text style={styles.summaryLabel}>Pending Reports</Text></View>
+                  <Text style={[styles.summaryVal, {color: '#ED6C02'}]}>{searchedPending}</Text>
+                </View>
+                <View style={styles.summaryItem}>
+                  <View style={styles.summaryIconRow}><Ionicons name="time-outline" size={16} color="#6B7280" /><Text style={styles.summaryLabel}>Total Hours Worked</Text></View>
+                  <Text style={[styles.summaryVal, {color: '#0056FF'}]}>{searchedTotalHours}</Text>
+                </View>
+              </View>
+
+              <Text style={[styles.summaryTitle, { marginTop: 24 }]}>WEEKLY EFFICIENCY</Text>
+              <View style={styles.summaryList}>
+                {getWeeklyEfficiency().length === 0 ? (
+                   <Text style={{color: '#6B7280', fontSize: 13, marginTop: 8}}>No data for efficiency.</Text>
+                ) : (
+                   getWeeklyEfficiency().map((wk, idx) => (
+                     <View key={idx} style={styles.summaryItem}>
+                       <View style={styles.summaryIconRow}>
+                         <Ionicons name="trending-up-outline" size={16} color="#0056FF" />
+                         <Text style={styles.summaryLabel}>Week of {wk.weekStart}</Text>
+                       </View>
+                       <View style={{alignItems: 'flex-end'}}>
+                         <Text style={[styles.summaryVal, {color: wk.efficiency >= 80 ? '#2E7D32' : (wk.efficiency >= 50 ? '#ED6C02' : '#991B1B')}]}>
+                           {wk.efficiency}%
+                         </Text>
+                         <Text style={{fontSize: 10, color: '#6B7280'}}>{wk.count} tasks</Text>
+                       </View>
+                     </View>
+                   ))
+                )}
+              </View>
+            </View>
+
             <View style={styles.tableCard}>
               <View style={styles.tableHeaderSection}>
                 <View>
@@ -499,102 +484,14 @@ export default function HodDashboard() {
                 </View>
               </ScrollView>
             </View>
-
-            <View style={styles.summaryCard}>
-              <Text style={styles.summaryTitle}>MONTHLY SUMMARY</Text>
-              <View style={styles.monthBadge}>
-                <Ionicons name="calendar-outline" size={16} color="#0056FF" />
-                <Text style={styles.monthBadgeText}>{currentMonthName}</Text>
-              </View>
-              <View style={styles.summaryList}>
-                <View style={styles.summaryItem}>
-                  <View style={styles.summaryIconRow}><Ionicons name="calendar-outline" size={16} color="#6B7280" /><Text style={styles.summaryLabel}>Total Working Days</Text></View>
-                  <Text style={styles.summaryVal}>22</Text>
-                </View>
-                <View style={styles.summaryItem}>
-                  <View style={styles.summaryIconRow}><Ionicons name="clipboard-outline" size={16} color="#6B7280" /><Text style={styles.summaryLabel}>Reports Submitted</Text></View>
-                  <Text style={styles.summaryVal}>{searchedSubmitted}</Text>
-                </View>
-                <View style={styles.summaryItem}>
-                  <View style={styles.summaryIconRow}><Ionicons name="time-outline" size={16} color="#6B7280" /><Text style={styles.summaryLabel}>Pending Reports</Text></View>
-                  <Text style={[styles.summaryVal, {color: '#ED6C02'}]}>{searchedPending}</Text>
-                </View>
-                <View style={styles.summaryItem}>
-                  <View style={styles.summaryIconRow}><Ionicons name="time-outline" size={16} color="#6B7280" /><Text style={styles.summaryLabel}>Total Hours Worked</Text></View>
-                  <Text style={[styles.summaryVal, {color: '#0056FF'}]}>{searchedTotalHours}</Text>
-                </View>
-              </View>
-            </View>
           </View>
         </>
       )}
 
-      {/* Analytics Charts Row */}
-      <View style={styles.chartsRow}>
-        <View style={styles.chartCard}>
-          <View style={styles.chartHeader}>
-            <Text style={styles.chartTitle}>EMPLOYEE PRODUCTIVITY</Text>
-            <View style={styles.dropdown}><Text style={styles.dropdownText}>This Month v</Text></View>
-          </View>
-          <View style={styles.lineChartMockup}>
-            {/* Simple CSS mockup for line chart */}
-            <View style={styles.lineChartGrid} />
-            <View style={styles.lineChartPath} />
-            <View style={[styles.dot, {left: '10%', top: '40%'}]} />
-            <View style={[styles.dot, {left: '30%', top: '50%'}]} />
-            <View style={[styles.dot, {left: '50%', top: '30%'}]} />
-            <View style={[styles.dot, {left: '70%', top: '45%'}]} />
-            <View style={[styles.dot, {left: '90%', top: '25%'}]} />
-            <View style={styles.chartXAxis}>
-              <Text style={styles.axisLabel}>Jan</Text><Text style={styles.axisLabel}>Feb</Text><Text style={styles.axisLabel}>Mar</Text><Text style={styles.axisLabel}>Apr</Text><Text style={styles.axisLabel}>May</Text><Text style={styles.axisLabel}>Jun</Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.chartCard}>
-          <View style={styles.chartHeader}>
-            <Text style={styles.chartTitle}>MONTHLY WORK HOURS</Text>
-            <View style={styles.dropdown}><Text style={styles.dropdownText}>This Month v</Text></View>
-          </View>
-          <View style={styles.barChartMockup}>
-             {/* Simple CSS mockup for bar chart */}
-             <View style={styles.barsContainer}>
-                <View style={[styles.bar, {height: '50%'}]} />
-                <View style={[styles.bar, {height: '60%'}]} />
-                <View style={[styles.bar, {height: '80%'}]} />
-                <View style={[styles.bar, {height: '45%'}]} />
-                <View style={[styles.bar, {height: '55%'}]} />
-                <View style={[styles.bar, {height: '70%'}]} />
-             </View>
-             <View style={styles.chartXAxis}>
-              <Text style={styles.axisLabel}>Jan</Text><Text style={styles.axisLabel}>Feb</Text><Text style={styles.axisLabel}>Mar</Text><Text style={styles.axisLabel}>Apr</Text><Text style={styles.axisLabel}>May</Text><Text style={styles.axisLabel}>Jun</Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.chartCard}>
-          <View style={styles.chartHeader}>
-            <Text style={styles.chartTitle}>DEPARTMENT PERFORMANCE</Text>
-            <View style={styles.dropdown}><Text style={styles.dropdownText}>This Month v</Text></View>
-          </View>
-          <View style={styles.donutChartMockup}>
-            <View style={styles.donutHole} />
-            {/* CSS representation of donut chart segments using borders */}
-            <View style={styles.donutSegmentBlue} />
-            <View style={styles.donutSegmentGreen} />
-            <View style={styles.donutSegmentOrange} />
-            <View style={styles.donutSegmentPurple} />
-            
-            <View style={styles.donutLegend}>
-              <Text style={styles.legendText}><View style={[styles.legendColor, {backgroundColor: '#0056FF'}]}/> {user?.department || 'Your Department'}</Text>
-              <Text style={styles.legendText}><View style={[styles.legendColor, {backgroundColor: '#2E7D32'}]}/> Other Depts</Text>
-            </View>
-          </View>
-        </View>
-      </View>
 
       <View style={{height: 40}} />
     </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -602,53 +499,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  createProjectCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 8,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    marginBottom: 24,
-  },
-  projectInputRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 16,
-  },
-  projectInputGroup: {
-    flex: 1,
-    minWidth: 150,
-  },
-  inputLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#4B5563',
-    marginBottom: 6,
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    height: 40,
-    fontSize: 14,
-  },
-  saveBtn: {
-    backgroundColor: '#0056FF',
-    height: 40,
-    paddingHorizontal: 24,
-    borderRadius: 6,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  saveBtnDisabled: {
-    opacity: 0.7,
-  },
-  saveBtnText: {
-    color: '#FFF',
-    fontWeight: '600',
-    fontSize: 14,
-  },
+
   statsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -763,8 +614,8 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   tableCard: {
-    flex: 1,
-    minWidth: '100%',
+    flex: 2,
+    minWidth: 320,
     backgroundColor: '#FFF',
     borderRadius: 8,
     padding: 20,
@@ -912,145 +763,5 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1F2937',
   },
-  chartsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 16,
-  },
-  chartCard: {
-    flex: 1,
-    minWidth: 280,
-    backgroundColor: '#FFF',
-    borderRadius: 8,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    height: 250,
-  },
-  chartHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  chartTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#4B5563',
-  },
-  dropdown: {
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  dropdownText: {
-    fontSize: 11,
-    color: '#6B7280',
-  },
-  donutSegmentBlue: {
-    borderTopColor: '#0056FF',
-    borderRightColor: '#0056FF',
-  },
-  donutSegmentGreen: {
-    borderBottomColor: '#2E7D32',
-    borderLeftColor: '#2E7D32',
-  },
-  donutSegmentOrange: {
-    borderColor: '#ED6C02',
-  },
-  donutSegmentPurple: {
-    borderColor: '#9C27B0',
-  },
-  lineChartMockup: {
-    flex: 1,
-    position: 'relative',
-  },
-  lineChartGrid: {
-    ...StyleSheet.absoluteFillObject,
-    borderBottomWidth: 1,
-    borderLeftWidth: 1,
-    borderColor: '#E5E7EB',
-    marginBottom: 24,
-  },
-  lineChartPath: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: '40%',
-    height: 2,
-    backgroundColor: '#0056FF',
-    transform: [{rotate: '-5deg'}],
-  },
-  dot: {
-    position: 'absolute',
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#0056FF',
-    borderWidth: 2,
-    borderColor: '#FFF',
-    transform: [{translateX: -4}, {translateY: -4}],
-  },
-  chartXAxis: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  axisLabel: {
-    fontSize: 10,
-    color: '#9CA3AF',
-  },
-  barChartMockup: {
-    flex: 1,
-    position: 'relative',
-  },
-  barsContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'flex-end',
-    marginBottom: 24,
-  },
-  bar: {
-    width: 12,
-    backgroundColor: '#0056FF',
-    borderRadius: 2,
-  },
-  donutChartMockup: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  donutHole: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 16,
-    borderColor: '#0056FF',
-    borderTopColor: '#2E7D32',
-    borderRightColor: '#ED6C02',
-    borderBottomColor: '#9C27B0',
-    marginRight: 20,
-  },
-  donutLegend: {
-    gap: 8,
-  },
-  legendText: {
-    fontSize: 11,
-    color: '#4B5563',
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  legendColor: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 6,
-  },
+
 });

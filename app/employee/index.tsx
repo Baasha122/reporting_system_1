@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Picker } from '@react-native-picker/picker';
 import React, { useState, useEffect, useMemo } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator, ScrollView } from 'react-native';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator, ScrollView, Platform, KeyboardAvoidingView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Brand } from '@/constants/brand';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/auth-context';
+import { CustomPicker } from '@/components/ui/custom-picker';
 
 export default function EmployeeDashboard() {
   const { user } = useAuth();
@@ -17,6 +18,8 @@ export default function EmployeeDashboard() {
 
   const [departmentProjects, setDepartmentProjects] = useState<any[]>([]);
   const [selectedProject, setSelectedProject] = useState('');
+  
+  const [dailyTasks, setDailyTasks] = useState<any[]>([]);
 
   useEffect(() => {
     if (user?.department) {
@@ -30,7 +33,8 @@ export default function EmployeeDashboard() {
       const { data, error } = await supabase
         .from('projects')
         .select('*')
-        .eq('department', user?.department);
+        .eq('department', user?.department)
+        .eq('status', 'onGoing');
         
       if (error) throw error;
       setDepartmentProjects(data || []);
@@ -80,67 +84,57 @@ export default function EmployeeDashboard() {
     }
   }, [startTime, endTime]);
 
-  const handleSaveTask = async () => {
+  const handleAddTask = () => {
+    if (!user || !user.id || !user.employeeId) {
+      Alert.alert('Error', 'User not identified. Please login again.');
+      return;
+    }
     if (!description.trim()) {
       alert('Please enter a task description');
       return;
     }
-
     if (!selectedProject) {
       alert('Please select a project');
       return;
     }
-
     if (!duration.trim()) {
       alert('Please enter a valid duration');
       return;
     }
-
-    setIsSaving(true);
     
-    try {
-      let hoursWorked = 0;
-      if (duration.includes(':')) {
-        const parts = duration.split(':');
-        hoursWorked = parseInt(parts[0] || '0', 10) + (parseInt(parts[1] || '0', 10) / 60);
-      } else {
-        hoursWorked = parseFloat(duration);
-      }
+    const selectedProjectObj = departmentProjects.find(p => p.projectid === selectedProject);
+    const taskNameToSave = selectedProjectObj ? selectedProjectObj.projectname : 'Task';
+    const descToSave = selectedProjectObj 
+      ? `Project ID: ${selectedProjectObj.projectid}\nCustomer: ${selectedProjectObj.customername}\n\nTask:\n${description}`
+      : description;
 
-      if (isNaN(hoursWorked) || hoursWorked <= 0) {
-        alert('Please enter a valid duration (e.g. 01:30 or 1.5)');
-        setIsSaving(false);
-        return;
-      }
-
-      const selectedProjectObj = departmentProjects.find(p => p.projectid === selectedProject);
-      const taskNameToSave = selectedProjectObj ? selectedProjectObj.projectname : (description.split('\n')[0].substring(0, 50) || 'Task');
-      const descToSave = selectedProjectObj 
-        ? `Project ID: ${selectedProjectObj.projectid}\nCustomer: ${selectedProjectObj.customername}\n\nTask:\n${description}`
-        : description;
-
-      const { error } = await supabase.from('daily_reports').insert({
-        employee_id: user?.id,
-        report_date: new Date().toISOString().split('T')[0],
-        task_name: taskNameToSave,
-        work_description: descToSave,
-        hours_worked: Number(hoursWorked.toFixed(2)),
-        completion_percentage: 100,
-        status: 'submitted'
-      });
-
-      if (error) throw error;
-      
-      alert('Task saved successfully!');
-      handleAddNewTask();
-    } catch (err: any) {
-      alert('Failed to save task: ' + err.message);
-    } finally {
-      setIsSaving(false);
+    let hoursWorked = 0;
+    if (duration.includes(':')) {
+      const parts = duration.split(':');
+      hoursWorked = parseInt(parts[0] || '0', 10) + (parseInt(parts[1] || '0', 10) / 60);
+    } else {
+      hoursWorked = parseFloat(duration);
     }
-  };
 
-  const handleAddNewTask = () => {
+    if (isNaN(hoursWorked) || hoursWorked <= 0) {
+      alert('Please enter a valid duration (e.g. 01:30 or 1.5)');
+      return;
+    }
+
+    const newTask = {
+      taskName: taskNameToSave,
+      description: descToSave,
+      duration: duration,
+      hoursWorked: Number(hoursWorked.toFixed(2)),
+      projectId: selectedProject,
+      startTime,
+      endTime,
+      rawDescription: description,
+    };
+
+    setDailyTasks([...dailyTasks, newTask]);
+
+    // Reset form
     setDescription('');
     setStartTime('09:00');
     setEndTime('10:00');
@@ -148,61 +142,88 @@ export default function EmployeeDashboard() {
     setSelectedProject('');
   };
 
+  const handleSaveAll = async () => {
+    if (dailyTasks.length === 0) {
+      alert("No tasks to save. Please add a task first.");
+      return;
+    }
+    
+    setIsSaving(true);
+    try {
+      const inserts = dailyTasks.map(task => ({
+        employee_id: user?.id,
+        report_date: new Date().toISOString().split('T')[0],
+        task_name: task.taskName,
+        work_description: task.description,
+        hours_worked: task.hoursWorked,
+        completion_percentage: 100,
+        status: 'submitted'
+      }));
+
+      const { error } = await supabase.from('daily_reports').insert(inserts);
+
+      if (error) throw error;
+      
+      alert('All tasks saved successfully for today!');
+      setDailyTasks([]);
+    } catch (err: any) {
+      alert('Failed to save tasks: ' + err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#F4F6F9' }} edges={['top', 'left', 'right']}>
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }} 
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView 
+          style={styles.container} 
+          contentContainerStyle={[styles.contentContainer, { paddingBottom: 120 }]} 
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
       <View style={styles.card}>
         <View style={styles.header}>
           <View style={styles.headerIndicator} />
-          <Text style={styles.headerTitle}>NEW TASK</Text>
+          <Text style={styles.headerTitle}>DAILY TASK TRACKER</Text>
         </View>
 
-      <View style={styles.form}>
-        {/* Project Selection */}
-        <View style={styles.fieldRow}>
-          <View style={styles.labelContainer}>
-            <Ionicons name="briefcase-outline" size={20} color={Brand.colors.primary} />
-            <Text style={styles.label}>Project</Text>
-          </View>
-          <View style={styles.inputContainerRow}>
-            <View style={[styles.inputWrapper, { padding: 0 }]}>
-              <Picker
-                selectedValue={selectedProject}
-                onValueChange={(val) => setSelectedProject(val)}
-                style={styles.picker}
-              >
-                <Picker.Item label="Select Project" value="" color="#9CA3AF" />
-                {departmentProjects.map(proj => (
-                  <Picker.Item key={proj.id} label={`${proj.projectid} - ${proj.projectname}`} value={proj.projectid} />
-                ))}
-              </Picker>
+        <View style={styles.form}>
+          {/* Top Row: Project & Customer */}
+          <View style={[styles.fieldRowHorizontal, { zIndex: 2 }]}>
+            <View style={styles.flexHalf}>
+              <Text style={styles.label}>Project selection</Text>
+              <View style={[styles.inputWrapper, { padding: 0 }]}>
+                <CustomPicker
+                  selectedValue={selectedProject}
+                  onValueChange={(val) => setSelectedProject(val)}
+                  style={styles.picker}
+                  placeholder="Select Project"
+                  items={departmentProjects.map(proj => ({
+                    label: `${proj.projectid} - ${proj.projectname}`,
+                    value: proj.projectid
+                  }))}
+                />
+              </View>
+            </View>
+            <View style={styles.flexHalf}>
+              <Text style={styles.label}>customer</Text>
+              <TextInput
+                style={[styles.input, { color: '#6B7280', backgroundColor: '#F3F4F6' }]}
+                placeholder="Auto-filled"
+                placeholderTextColor="#9CA3AF"
+                value={departmentProjects.find(p => p.projectid === selectedProject)?.customername || ''}
+                editable={false}
+              />
             </View>
           </View>
-        </View>
 
-        {/* Customer Name (Read Only) */}
-        <View style={styles.fieldRow}>
-          <View style={styles.labelContainer}>
-            <Ionicons name="business-outline" size={20} color={Brand.colors.primary} />
-            <Text style={styles.label}>Customer</Text>
-          </View>
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={[styles.input, { color: '#6B7280', backgroundColor: '#F3F4F6', width: '100%' }]}
-              placeholder="Auto-filled from project"
-              placeholderTextColor="#9CA3AF"
-              value={departmentProjects.find(p => p.projectid === selectedProject)?.customername || ''}
-              editable={false}
-            />
-          </View>
-        </View>
-
-        {/* Task Description */}
-        <View style={styles.fieldRow}>
-          <View style={styles.labelContainer}>
-            <Ionicons name="list" size={20} color={Brand.colors.primary} />
-            <Text style={styles.label}>Task Description</Text>
-          </View>
-          <View style={styles.inputContainer}>
+          {/* Middle Row: Task Description */}
+          <View style={styles.fieldRow}>
+            <Text style={styles.label}>task Description</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
               placeholder="Enter task description..."
@@ -214,101 +235,95 @@ export default function EmployeeDashboard() {
               textAlignVertical="top"
             />
           </View>
-        </View>
 
-        {/* Start Time */}
-        <View style={styles.fieldRow}>
-          <View style={styles.labelContainer}>
-            <Ionicons name="time-outline" size={20} color={Brand.colors.primary} />
-            <Text style={styles.label}>Start Time</Text>
-          </View>
-          <View style={styles.inputContainerRow}>
-            <View style={[styles.inputWrapper, { padding: 0 }]}>
-              <Picker
-                selectedValue={startTime}
-                onValueChange={(val) => setStartTime(val)}
-                style={styles.picker}
-              >
-                {timeOptions.map(time => (
-                  <Picker.Item key={time} label={time} value={time} />
-                ))}
-              </Picker>
+          {/* Third Row: Times & Add Button */}
+          <View style={styles.fieldRowHorizontal}>
+            <View style={styles.flexThird}>
+              <Text style={styles.label}>start time</Text>
+              <View style={[styles.inputWrapper, { padding: 0 }]}>
+                <CustomPicker
+                  selectedValue={startTime}
+                  onValueChange={(val) => setStartTime(val)}
+                  style={styles.picker}
+                  placeholder="Start Time"
+                  items={timeOptions.map(time => ({ label: time, value: time }))}
+                />
+              </View>
             </View>
-          </View>
-        </View>
-
-        {/* End Time */}
-        <View style={styles.fieldRow}>
-          <View style={styles.labelContainer}>
-            <Ionicons name="time-outline" size={20} color={Brand.colors.primary} />
-            <Text style={styles.label}>End Time</Text>
-          </View>
-          <View style={styles.inputContainerRow}>
-            <View style={[styles.inputWrapper, { padding: 0 }]}>
-              <Picker
-                selectedValue={endTime}
-                onValueChange={(val) => setEndTime(val)}
-                style={styles.picker}
-              >
-                {timeOptions.map(time => (
-                  <Picker.Item key={time} label={time} value={time} />
-                ))}
-              </Picker>
+            <View style={styles.flexThird}>
+              <Text style={styles.label}>End Time</Text>
+              <View style={[styles.inputWrapper, { padding: 0 }]}>
+                <CustomPicker
+                  selectedValue={endTime}
+                  onValueChange={(val) => setEndTime(val)}
+                  style={styles.picker}
+                  placeholder="End Time"
+                  items={timeOptions.map(time => ({ label: time, value: time }))}
+                />
+              </View>
             </View>
-          </View>
-        </View>
-
-        {/* Duration */}
-        <View style={styles.fieldRow}>
-          <View style={styles.labelContainer}>
-            <Ionicons name="hourglass-outline" size={20} color={Brand.colors.primary} />
-            <Text style={styles.label}>Duration</Text>
-          </View>
-          <View style={styles.inputContainerRow}>
-            <View style={[styles.inputWrapper, styles.durationWrapper]}>
-              <Ionicons name="time-outline" size={18} color="#6B7280" style={styles.inputIconLeft} />
+            <View style={styles.flexThird}>
+              <Text style={styles.label}>Duration</Text>
               <TextInput
-                style={[styles.inputWithIcons, styles.durationInput]}
-                placeholder="e.g., 01:30"
+                style={[styles.input, styles.durationInput]}
+                placeholder="HH:MM"
                 placeholderTextColor="#9CA3AF"
                 value={duration}
                 onChangeText={setDuration}
-                editable={true} // Allow manual entry
               />
-              <View style={styles.durationSuffix}>
-                <Text style={styles.durationSuffixText}>HH:MM</Text>
-              </View>
+            </View>
+            
+            <View style={styles.addButtonWrapper}>
+              <TouchableOpacity style={styles.addButton} onPress={handleAddTask}>
+                <Text style={styles.addButtonText}>add</Text>
+              </TouchableOpacity>
             </View>
           </View>
-        </View>
 
-        {/* Actions */}
-        <View style={styles.actionsContainer}>
-          <View style={styles.spacer} />
-          <View style={styles.buttonGroup}>
+          {/* Table */}
+          <View style={styles.tableContainer}>
+            <View style={styles.tableHeaderRow}>
+              <Text style={[styles.tableHeaderCell, { flex: 0.5, textAlign: 'center' }]}>S.NO</Text>
+              <Text style={[styles.tableHeaderCell, { flex: 3 }]}>Tasks</Text>
+              <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: 'center' }]}>Duration</Text>
+            </View>
+            
+            {dailyTasks.length === 0 ? (
+              <View style={styles.emptyTable}>
+                <Text style={styles.emptyTableText}>No tasks added yet.</Text>
+              </View>
+            ) : (
+              dailyTasks.map((task, index) => (
+                <View style={styles.tableRow} key={index}>
+                  <Text style={[styles.tableCell, { flex: 0.5, textAlign: 'center' }]}>{index + 1}</Text>
+                  <Text style={[styles.tableCell, { flex: 3 }]} numberOfLines={2}>
+                    <Text style={{fontWeight: '600'}}>{task.taskName}</Text>: {task.rawDescription}
+                  </Text>
+                  <Text style={[styles.tableCell, { flex: 1, textAlign: 'center' }]}>{task.duration}</Text>
+                </View>
+              ))
+            )}
+          </View>
+
+          {/* Save Button */}
+          <View style={styles.saveContainer}>
             <TouchableOpacity 
-              style={[styles.saveButton, isSaving && { opacity: 0.7 }]} 
-              onPress={handleSaveTask}
-              disabled={isSaving}
+              style={[styles.saveButton, (isSaving || dailyTasks.length === 0) && { opacity: 0.7 }]} 
+              onPress={handleSaveAll}
+              disabled={isSaving || dailyTasks.length === 0}
             >
               {isSaving ? (
                 <ActivityIndicator color={Brand.colors.white} size="small" />
               ) : (
-                <Ionicons name="save-outline" size={18} color={Brand.colors.white} />
+                <Text style={styles.saveButtonText}>save</Text>
               )}
-              <Text style={styles.saveButtonText}>Save Task</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.addButton} onPress={handleAddNewTask}>
-              <Ionicons name="add" size={18} color={Brand.colors.primary} />
-              <Text style={styles.addButtonText}>Add New Task</Text>
             </TouchableOpacity>
           </View>
         </View>
-
       </View>
-    </View>
     </ScrollView>
+    </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -328,7 +343,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 15,
     elevation: 3,
-    maxWidth: 800,
+    maxWidth: 900,
   },
   header: {
     flexDirection: 'row',
@@ -354,183 +369,154 @@ const styles = StyleSheet.create({
   form: {
     gap: 24,
   },
+  fieldRowHorizontal: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 16,
+    flexWrap: Platform.OS === 'web' ? 'nowrap' : 'wrap',
+  },
   fieldRow: {
     flexDirection: 'column',
     alignItems: 'stretch',
     gap: 8,
   },
-  labelContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  flexHalf: {
+    flex: 1,
+    minWidth: 140, // Reduced from 200 to prevent mobile overflow
+    gap: 8,
+  },
+  flexThird: {
+    flex: 1,
+    minWidth: 90, // Reduced from 120 to prevent mobile overflow
     gap: 8,
   },
   label: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: Brand.colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#000',
   },
   inputContainer: {
-    width: '100%',
-  },
-  inputContainerRow: {
-    flexDirection: 'row',
     width: '100%',
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: Brand.colors.border,
-    borderRadius: 6,
+    borderColor: '#D1D5DB',
     backgroundColor: Brand.colors.white,
-    flex: 1,
+    height: 50,
+    width: '100%',
   },
   input: {
     borderWidth: 1,
-    borderColor: Brand.colors.border,
-    borderRadius: 6,
-    padding: 12,
-    fontSize: 15,
-    color: Brand.colors.text,
+    borderColor: '#D1D5DB',
+    padding: 10,
+    fontSize: 14,
+    color: '#1F2937',
     backgroundColor: Brand.colors.white,
+    height: 50,
   },
   textArea: {
     minHeight: 120,
+    height: 'auto',
     paddingTop: 12,
-  },
-  inputWithIcons: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    fontSize: 15,
-    color: Brand.colors.text,
-  },
-  inputIconLeft: {
-    paddingLeft: 12,
-  },
-  inputIconRight: {
-    paddingRight: 12,
   },
   picker: {
     flex: 1,
-    minHeight: 54,
+    width: '100%',
+    height: 50,
+    minHeight: 50,
     borderWidth: 0,
     backgroundColor: 'transparent',
-    color: Brand.colors.text,
-  },
-  durationWrapper: {
-    backgroundColor: '#F9FAFB', // Slight grey for read-only feel
+    color: '#1F2937',
+    margin: 0,
+    paddingTop: 0,
+    paddingBottom: 0,
+    paddingHorizontal: 8,
   },
   durationInput: {
-    color: Brand.colors.primaryDark,
+    color: '#1F2937',
     fontWeight: '600',
   },
-  durationSuffix: {
-    borderLeftWidth: 1,
-    borderLeftColor: Brand.colors.border,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  durationSuffixText: {
-    color: Brand.colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  actionsContainer: {
-    marginTop: 16,
-  },
-  spacer: {
-    display: 'none',
-  },
-  buttonGroup: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 16,
-  },
-  saveButton: {
-    backgroundColor: Brand.colors.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 6,
-    gap: 8,
-  },
-  saveButtonText: {
-    color: Brand.colors.white,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  addButton: {
-    backgroundColor: Brand.colors.white,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: Brand.colors.border,
-    gap: 8,
-  },
-  addButtonText: {
-    color: Brand.colors.primary,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  emptyCard: {
-    backgroundColor: Brand.colors.card,
-    borderRadius: 12,
-    padding: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Brand.colors.border,
-    marginBottom: 16,
-  },
-  emptyText: {
-    color: Brand.colors.textSecondary,
-    fontSize: 13,
-  },
-  projectsScroll: {
-    marginBottom: 16,
-    marginHorizontal: -20,
-    paddingHorizontal: 20,
-  },
-  projectCard: {
-    backgroundColor: Brand.colors.card,
-    borderRadius: 12,
-    padding: 16,
-    width: 200,
-    marginRight: 12,
-    borderWidth: 1,
-    borderColor: Brand.colors.border,
-    borderLeftWidth: 4,
-    borderLeftColor: Brand.colors.primary,
-  },
-  projectHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  projectId: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: Brand.colors.primary,
-    backgroundColor: '#F0F5FF',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  projectName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: Brand.colors.text,
+  addButtonWrapper: {
+    justifyContent: 'flex-end',
     marginBottom: 4,
   },
-  customerName: {
-    fontSize: 12,
-    color: Brand.colors.textSecondary,
+  addButton: {
+    backgroundColor: '#0056FF',
+    borderWidth: 1,
+    borderColor: '#0056FF',
+    borderRadius: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: 40,
+  },
+  addButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  tableContainer: {
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  tableHeaderRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#D1D5DB',
+    backgroundColor: '#F9FAFB',
+  },
+  tableHeaderCell: {
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#4B5563',
+    borderRightWidth: 1,
+    borderRightColor: '#D1D5DB',
+  },
+  tableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    alignItems: 'center',
+  },
+  tableCell: {
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    fontSize: 14,
+    color: '#1F2937',
+    borderRightWidth: 1,
+    borderRightColor: '#E5E7EB',
+  },
+  emptyTable: {
+    padding: 24,
+    alignItems: 'center',
+  },
+  emptyTableText: {
+    color: '#6B7280',
+    fontStyle: 'italic',
+  },
+  saveContainer: {
+    alignItems: 'flex-end',
+    marginTop: 16,
+  },
+  saveButton: {
+    backgroundColor: '#0056FF',
+    borderRadius: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });
