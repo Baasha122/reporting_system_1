@@ -144,6 +144,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     maxHeight: '60%',
+    paddingBottom: 34,
   },
   modalHeader: {
     flexDirection: 'row',
