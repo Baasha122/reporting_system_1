@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Platform, View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
+import { Platform, View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -44,24 +44,7 @@ export function CustomPicker({ selectedValue, onValueChange, items, placeholder,
     );
   }
 
-  if (Platform.OS === 'android') {
-    return (
-      <Picker
-        selectedValue={selectedValue}
-        onValueChange={onValueChange}
-        style={style}
-        dropdownIconColor="#6B7280"
-        mode="dropdown"
-      >
-        {placeholder && <Picker.Item label={placeholder} value="" color="#9CA3AF" />}
-        {items.map((item, idx) => (
-          <Picker.Item key={idx} label={item.label} value={item.value} color={item.color || (StyleSheet.flatten(style)?.color || '#1F2937')} />
-        ))}
-      </Picker>
-    );
-  }
-
-  // iOS Fallback using Modal
+  // Cross-Platform Fallback using Modal for Android & iOS
   const selectedItem = items.find((i) => i.value === selectedValue);
 
   // Extract text styles to apply to the Text component
@@ -86,27 +69,42 @@ export function CustomPicker({ selectedValue, onValueChange, items, placeholder,
         </View>
         <Ionicons name="chevron-down" size={16} color="#6B7280" />
       </TouchableOpacity>
-      <Modal visible={modalVisible} transparent animationType="slide">
+      
+      <Modal visible={modalVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <TouchableOpacity style={styles.modalBg} activeOpacity={1} onPress={() => setModalVisible(false)} />
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{placeholder || 'Select Option'}</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Text style={styles.modalClose}>Done</Text>
+                <Text style={styles.modalClose}>Close</Text>
               </TouchableOpacity>
             </View>
-            <Picker
-              selectedValue={selectedValue}
-              onValueChange={onValueChange}
-              style={{ width: '100%', backgroundColor: '#fff' }}
-              itemStyle={{ color: '#000' }} // Force black text to prevent invisible text in iOS Dark Mode
-            >
-              {placeholder && <Picker.Item label={placeholder} value="" color="#9CA3AF" />}
+            <ScrollView style={styles.optionsList} showsVerticalScrollIndicator={false}>
+              {placeholder && (
+                <TouchableOpacity 
+                  style={styles.optionItem} 
+                  onPress={() => { onValueChange(''); setModalVisible(false); }}
+                >
+                  <Text style={[styles.optionText, { color: '#9CA3AF' }]}>{placeholder}</Text>
+                </TouchableOpacity>
+              )}
               {items.map((item, idx) => (
-                <Picker.Item key={idx} label={item.label} value={item.value} color={item.color || '#000'} />
+                <TouchableOpacity 
+                  key={idx} 
+                  style={[styles.optionItem, selectedValue === item.value && styles.optionItemSelected]} 
+                  onPress={() => { onValueChange(item.value); setModalVisible(false); }}
+                >
+                  <Text style={[styles.optionText, selectedValue === item.value && styles.optionTextSelected, item.color ? { color: item.color } : null]}>
+                    {item.label}
+                  </Text>
+                  {selectedValue === item.value && (
+                    <Ionicons name="checkmark" size={20} color="#0056FF" />
+                  )}
+                </TouchableOpacity>
               ))}
-            </Picker>
+              <View style={{ height: 20 }} />
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -143,9 +141,9 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: '#FFF',
-    paddingBottom: 30, // safe area spacing
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    maxHeight: '60%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -155,8 +153,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
     backgroundColor: '#F9FAFB',
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
   },
   modalTitle: {
     fontWeight: '600',
@@ -167,5 +165,31 @@ const styles = StyleSheet.create({
     color: '#0056FF',
     fontWeight: '600',
     fontSize: 16,
+  },
+  optionsList: {
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+  },
+  optionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  optionItemSelected: {
+    backgroundColor: '#EFF6FF',
+    borderRadius: 8,
+    borderBottomWidth: 0,
+  },
+  optionText: {
+    fontSize: 16,
+    color: '#1F2937',
+  },
+  optionTextSelected: {
+    color: '#0056FF',
+    fontWeight: '600',
   }
 });
