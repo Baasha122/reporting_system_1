@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useState, useEffect, useMemo } from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator, ScrollView, Platform, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { Brand } from '@/constants/brand';
 import { supabase } from '@/lib/supabase';
@@ -20,6 +21,22 @@ export default function EmployeeDashboard() {
   const [selectedProject, setSelectedProject] = useState('');
   
   const [dailyTasks, setDailyTasks] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadSavedTasks = async () => {
+      if (user?.id) {
+        try {
+          const saved = await AsyncStorage.getItem(`@dailyTasks_${user.id}`);
+          if (saved) {
+            setDailyTasks(JSON.parse(saved));
+          }
+        } catch (err) {
+          console.error("Failed to load saved tasks", err);
+        }
+      }
+    };
+    loadSavedTasks();
+  }, [user?.id]);
 
   useEffect(() => {
     if (user?.department) {
@@ -132,7 +149,11 @@ export default function EmployeeDashboard() {
       rawDescription: description,
     };
 
-    setDailyTasks([...dailyTasks, newTask]);
+    const newTasks = [...dailyTasks, newTask];
+    setDailyTasks(newTasks);
+    if (user?.id) {
+      AsyncStorage.setItem(`@dailyTasks_${user.id}`, JSON.stringify(newTasks)).catch(err => console.error("Failed to save tasks", err));
+    }
 
     // Reset form
     setDescription('');
@@ -166,6 +187,9 @@ export default function EmployeeDashboard() {
       
       alert('All tasks saved successfully for today!');
       setDailyTasks([]);
+      if (user?.id) {
+        AsyncStorage.removeItem(`@dailyTasks_${user.id}`).catch(err => console.error("Failed to clear saved tasks", err));
+      }
     } catch (err: any) {
       alert('Failed to save tasks: ' + err.message);
     } finally {
