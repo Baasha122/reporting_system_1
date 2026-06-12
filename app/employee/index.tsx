@@ -9,16 +9,29 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/auth-context';
 import { CustomPicker } from '@/components/ui/custom-picker';
 
+// In-memory cache to preserve form draft when navigating between screens
+const draftCache: Record<string, { description: string, startTime: string, endTime: string, selectedProject: string }> = {};
+
 export default function EmployeeDashboard() {
   const { user } = useAuth();
-  const [description, setDescription] = useState('');
-  const [startTime, setStartTime] = useState('09:00');
-  const [endTime, setEndTime] = useState('10:00');
+  const draft = user?.id ? draftCache[user.id] : null;
+
+  const [description, setDescription] = useState(draft?.description || '');
+  const [startTime, setStartTime] = useState(draft?.startTime || '09:00');
+  const [endTime, setEndTime] = useState(draft?.endTime || '10:00');
   const [duration, setDuration] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   const [departmentProjects, setDepartmentProjects] = useState<any[]>([]);
-  const [selectedProject, setSelectedProject] = useState('');
+  const [selectedProject, setSelectedProject] = useState(draft?.selectedProject || '');
+
+  // Keep cache updated when draft changes
+  useEffect(() => {
+    if (user?.id) {
+      draftCache[user.id] = { description, startTime, endTime, selectedProject };
+    }
+  }, [description, startTime, endTime, selectedProject, user?.id]);
+
   
   const [dailyTasks, setDailyTasks] = useState<any[]>([]);
 
@@ -161,6 +174,11 @@ export default function EmployeeDashboard() {
     setEndTime('10:00');
     setDuration('');
     setSelectedProject('');
+
+    // Clear draft cache
+    if (user?.id) {
+      draftCache[user.id] = { description: '', startTime: '09:00', endTime: '10:00', selectedProject: '' };
+    }
   };
 
   const handleSaveAll = async () => {
