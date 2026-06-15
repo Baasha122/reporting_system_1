@@ -3,7 +3,6 @@ import { Link, usePathname } from 'expo-router';
 import React from 'react';
 import { Pressable, Image, StyleSheet, Text, View } from 'react-native';
 
-import { useLogout } from '@/components/auth/auth-guard';
 import { Brand } from '@/constants/brand';
 import { useAuth } from '@/contexts/auth-context';
 
@@ -19,13 +18,11 @@ const HOD_NAV_ITEMS = [
   { name: 'Monthly Reports', path: '/hod/monthly', icon: 'calendar-outline' as const },
   { name: 'Client History', path: '/hod/history', icon: 'time-outline' as const },
   { name: 'Projects', path: '/hod/projects', icon: 'folder-open-outline' as const },
-  { name: 'Settings', path: '/hod/settings', icon: 'settings-outline' as const },
 ];
 
 export function Sidebar({ isMobile }: { isMobile?: boolean }) {
   const pathname = usePathname();
   const { user } = useAuth();
-  const handleLogout = useLogout();
   
   const navItems = user?.role === 'hod' ? HOD_NAV_ITEMS : EMPLOYEE_NAV_ITEMS;
 
@@ -58,10 +55,6 @@ export function Sidebar({ isMobile }: { isMobile?: boolean }) {
             </Link>
           );
         })}
-        <Pressable style={styles.mobileNavItem} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={24} color={Brand.colors.textSecondary} />
-          <Text style={styles.mobileNavText} numberOfLines={1}>Logout</Text>
-        </Pressable>
       </View>
     );
   }
@@ -97,12 +90,6 @@ export function Sidebar({ isMobile }: { isMobile?: boolean }) {
         })}
       </View>
       <View style={styles.spacer} />
-      <View style={styles.logoutContainer}>
-        <Pressable style={styles.navItem} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={22} color={Brand.colors.textSecondary} style={styles.icon} />
-          <Text style={styles.navText}>Logout</Text>
-        </Pressable>
-      </View>
     </View>
   );
 }

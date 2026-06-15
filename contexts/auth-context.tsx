@@ -176,8 +176,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                });
                
                if (!signUpError && signUpData.user) {
-                  // Wait for the Supabase DB trigger to create the profile row
-                  await new Promise(r => setTimeout(r, 800));
+                  // Manually insert the profile row in case there is no DB trigger
+                  await supabase.from('profiles').insert([{
+                       id: signUpData.user.id,
+                       employee_id: identUpper,
+                       department: HOD_MAP[prefix],
+                       name: `${HOD_MAP[prefix]} Head`,
+                       role: 'hod',
+                       email: hodEmail
+                  }]);
                }
              }
           }
@@ -222,11 +229,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (data.user) {
         // Fetch profile to return it
-        const { data: profile } = await supabase
+        let { data: profile } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', data.user.id)
           .single();
+
+        // If profile is missing (no trigger fired), and it's a magic HOD account, manually rescue it!
+        if (!profile && email.toLowerCase().includes('hod@barani.com')) {
+          const prefix = email.substring(0, 2).toUpperCase();
+          const HOD_MAP: Record<string, string> = {
+            'MS': 'Machine shop', 'AS': 'Assembly', 'PR': 'Production',
+            'EL': 'Electrical', 'FA': 'Fabrication', 'DE': 'Design',
+            'HR': 'HR', 'MA': 'maintenance'
+          };
+          const correctDept = HOD_MAP[prefix] || 'Unknown';
+          const rescueProfile = {
+            id: data.user.id,
+            employee_id: `${prefix}HOD`,
+            name: `${correctDept} Head`,
+            department: correctDept,
+            role: 'hod',
+            email: email
+          };
+          await supabase.from('profiles').insert([rescueProfile]);
+          profile = rescueProfile;
+        }
 
         if (profile) {
           let userRole = profile.role as UserRole;
@@ -350,22 +378,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (data.user) {
-        // 2. Wait a tiny bit for the DB trigger to finish creating the profile row
+        // Wait a tiny bit for the DB trigger to finish creating the profile row
         await new Promise(resolve => setTimeout(resolve, 500));
 
-        // 3. Update the profile with the generated ID just to be absolutely sure
-        const { error: updateError } = await supabase
+        // Check if the profile was created by a trigger
+        const { data: existingProfile } = await supabase
           .from('profiles')
-          .update({
+          .select('id')
+          .eq('id', data.user.id)
+          .single();
+
+        if (!existingProfile) {
+          // Trigger didn't run, manually insert the profile
+          await supabase.from('profiles').insert([{
+            id: data.user.id,
             name,
             department,
             employee_id: generatedEmployeeId,
-          })
-          .eq('id', data.user.id);
-
-        if (updateError) {
-          console.error("Failed to update profile info:", updateError);
-          // We don't block login if profile update fails, but they might have default name
+            role: 'employee',
+            email
+          }]);
+        } else {
+          // Trigger ran, just update it
+          await supabase
+            .from('profiles')
+            .update({
+              name,
+              department,
+              employee_id: generatedEmployeeId,
+            })
+            .eq('id', data.user.id);
         }
 
         // 4. Fetch the final profile

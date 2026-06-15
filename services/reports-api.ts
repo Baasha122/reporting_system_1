@@ -23,37 +23,61 @@ export async function fetchReports(filters?: ReportFilters): Promise<DailyReport
     .eq('id', authData.user.id)
     .single();
 
+  const userRole = currentUserProfile?.role || authData.user.user_metadata?.role;
+  const userDept = currentUserProfile?.department || authData.user.user_metadata?.department;
+
   let query = supabase
-    .from('daily_reports')
-    .select(`
-      *,
-      employee:profiles!inner(id, name, employee_id, department)
-    `)
-    .order('created_at', { ascending: false });
+    .from('project')
+    .select('*');
 
   // If user is an HOD, strictly filter by their department
-  if (currentUserProfile?.role === 'hod' && currentUserProfile?.department) {
-    query = query.eq('profiles.department', currentUserProfile.department);
+  if (userRole === 'hod' && userDept) {
+    query = query.eq('Department', userDept);
   }
 
-  if (filters?.status) {
-    query = query.eq('status', filters.status);
-  }
   if (filters?.dateFrom) {
-    query = query.gte('report_date', filters.dateFrom);
+    query = query.gte('date', filters.dateFrom);
   }
   if (filters?.dateTo) {
-    query = query.lte('report_date', filters.dateTo);
+    query = query.lte('date', filters.dateTo);
   }
 
   const { data, error } = await query;
   if (error) throw error;
   
-  // Reshape data to match DailyReport interface
-  return (data || []).map(item => ({
-    ...item,
-    employee: Array.isArray(item.employee) ? item.employee[0] : item.employee
-  })) as DailyReport[];
+  // Fetch profiles manually to attach employee names
+  const { data: profiles } = await supabase.from('profiles').select('id, name, employee_id, department');
+  
+  // Reshape data to match DailyReport interface so the HOD Dashboard doesn't break
+  return (data || []).map((item, index) => {
+    // Gracefully handle different column case variations
+    const empId = item.employee_ID || item.Employee_ID || item.employee_id || item.Employee_Id;
+    const dept = item.Department || item.department || item.DEPARTMENT;
+    const projName = item.Project_name || item.Project_Name || item.project_name;
+    const taskDesc = item.Task || item.task || item.TASK;
+    const rDate = item.date || item.Date || item.DATE;
+    const dur = item.duration || item.Duration || item.DURATION || '0';
+
+    const profile = profiles?.find(p => p.employee_id === empId);
+    
+    return {
+      id: index,
+      employee_id: profile?.id || 'unknown',
+      actual_employee_id: empId,
+      report_date: rDate,
+      task_name: projName,
+      work_description: taskDesc,
+      hours_worked: dur as any, // duration is a string like "02:30"
+      completion_percentage: 100,
+      status: 'submitted', // status no longer exists in project table
+      department: dept,
+      employee: {
+        name: profile?.name || empId,
+        employee_id: empId,
+        department: dept
+      }
+    };
+  }) as DailyReport[];
 }
 
 export async function fetchReport(id: number): Promise<DailyReport> {

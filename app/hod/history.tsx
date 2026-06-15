@@ -20,11 +20,12 @@ export default function ClientHistoryScreen() {
   const loadHistory = async () => {
     try {
       setLoading(true);
-      // Fetch all projects (assuming RLS handles filtering, or just get all for now since 'department' column might not exist)
+      // Fetch projects filtered by the HOD's department
       const { data, error } = await supabase
         .from('projects')
         .select('*')
-        .order('id', { ascending: false }); // order by id instead of created_at to avoid column name mismatch
+        .eq('department', user.department)
+        .order('id', { ascending: false });
 
       if (error) throw error;
       

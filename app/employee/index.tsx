@@ -190,16 +190,16 @@ export default function EmployeeDashboard() {
     setIsSaving(true);
     try {
       const inserts = dailyTasks.map(task => ({
-        employee_id: user?.id,
-        report_date: new Date().toISOString().split('T')[0],
-        task_name: task.taskName,
-        work_description: task.description,
-        hours_worked: task.hoursWorked,
-        completion_percentage: 100,
-        status: 'submitted'
+        employee_ID: user?.employeeId,
+        Department: user?.department,
+        Project_name: task.taskName,
+        Project_Id: task.projectId,
+        Task: task.rawDescription,
+        date: new Date().toISOString().split('T')[0],
+        duration: task.duration
       }));
 
-      const { error } = await supabase.from('daily_reports').insert(inserts);
+      const { error } = await supabase.from('project').insert(inserts);
 
       if (error) throw error;
       

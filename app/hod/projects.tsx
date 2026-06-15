@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator, Platform, Alert, ScrollView } from 'react-native';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator, Platform, Alert, ScrollView, Modal, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/auth-context';
 import { Brand } from '@/constants/brand';
+import { fetchReports } from '@/services/reports-api';
+import { DailyReport } from '@/types/report';
 
 export default function ProjectsScreen() {
   const { user } = useAuth();
@@ -15,6 +17,8 @@ export default function ProjectsScreen() {
   const [isSubmittingProject, setIsSubmittingProject] = useState(false);
   const [projects, setProjects] = useState<any[]>([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
+  const [selectedProjectReports, setSelectedProjectReports] = useState<{ project: any, reports: DailyReport[] } | null>(null);
+  const [isLoadingTasks, setIsLoadingTasks] = useState(false);
 
   useEffect(() => {
     fetchProjects();
@@ -127,6 +131,30 @@ export default function ProjectsScreen() {
     }
   };
 
+  const handleProjectClick = async (project: any) => {
+    setIsLoadingTasks(true);
+    try {
+      const allReports = await fetchReports();
+      const projectReports = allReports.filter(r => r.task_name === project.projectname);
+      setSelectedProjectReports({ project, reports: projectReports });
+    } catch (err) {
+      console.error(err);
+      if (Platform.OS === 'web') alert('Failed to load project tasks');
+      else Alert.alert('Error', 'Failed to load project tasks');
+    } finally {
+      setIsLoadingTasks(false);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'approved': return Brand.colors.success;
+      case 'rejected': return Brand.colors.error;
+      case 'submitted': return Brand.colors.warning;
+      default: return Brand.colors.textSecondary;
+    }
+  };
+
   return (
     <ScrollView 
       style={styles.container} 
@@ -206,7 +234,7 @@ export default function ProjectsScreen() {
                 </View>
               ) : (
                 projects.map((proj, i) => (
-                  <View key={proj.id || i} style={styles.tableRow}>
+                  <TouchableOpacity key={proj.id || i} style={styles.tableRow} onPress={() => handleProjectClick(proj)}>
                     <Text style={[styles.tableCell, {flex: 1, minWidth: 100, fontWeight: '500'}]}>{proj.projectid}</Text>
                     <Text style={[styles.tableCell, {flex: 2, minWidth: 200}]} numberOfLines={1}>{proj.projectname}</Text>
                     <Text style={[styles.tableCell, {flex: 2, minWidth: 200}]} numberOfLines={1}>{proj.customername || '-'}</Text>
@@ -226,13 +254,73 @@ export default function ProjectsScreen() {
                         </Text>
                       </TouchableOpacity>
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 ))
               )}
             </View>
           </ScrollView>
         )}
       </View>
+
+      {/* Project Tasks Modal */}
+      <Modal
+        visible={!!selectedProjectReports}
+        animationType="slide"
+        presentationStyle="formSheet"
+        onRequestClose={() => setSelectedProjectReports(null)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <View>
+              <Text style={styles.modalTitle}>{selectedProjectReports?.project.projectname} - Tasks</Text>
+              <Text style={styles.modalSubtitle}>Project ID: {selectedProjectReports?.project.projectid} • Customer: {selectedProjectReports?.project.customername || 'N/A'}</Text>
+            </View>
+            <TouchableOpacity onPress={() => setSelectedProjectReports(null)} style={styles.closeBtn}>
+              <Ionicons name="close" size={24} color={Brand.colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+          
+          <View style={{ flex: 1, padding: 16 }}>
+            {isLoadingTasks ? (
+              <ActivityIndicator size="large" color={Brand.colors.primary} style={{ marginTop: 40 }} />
+            ) : (
+              <View style={styles.modalTableCard}>
+                <View style={styles.modalTableHeader}>
+                  <Text style={[styles.modalCol, { flex: 0.5 }]}>S.No</Text>
+                  <Text style={[styles.modalCol, { flex: 1.5 }]}>Employee</Text>
+                  <Text style={[styles.modalCol, { flex: 2 }]}>Task Description</Text>
+                  <Text style={[styles.modalCol, { flex: 1.5 }]}>Date</Text>
+                  <Text style={[styles.modalCol, { flex: 0.8, textAlign: 'center' }]}>Hrs</Text>
+                  <Text style={[styles.modalCol, { flex: 1, textAlign: 'right' }]}>Status</Text>
+                </View>
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  {selectedProjectReports?.reports.length === 0 ? (
+                    <Text style={{ textAlign: 'center', padding: 20, color: Brand.colors.textSecondary }}>No tasks logged for this project yet.</Text>
+                  ) : (
+                    selectedProjectReports?.reports.map((report, index) => (
+                      <View key={report.id} style={styles.modalTableRow}>
+                        <Text style={[styles.modalCell, { flex: 0.5 }]}>{index + 1}</Text>
+                        <Text style={[styles.modalCell, { flex: 1.5 }]} numberOfLines={2}>{report.employee?.name || 'Unknown'}</Text>
+                        <Text style={[styles.modalCell, { flex: 2 }]} numberOfLines={3}>{report.work_description}</Text>
+                        <Text style={[styles.modalCell, { flex: 1.5 }]}>{report.report_date}</Text>
+                        <Text style={[styles.modalCell, { flex: 0.8, textAlign: 'center' }]}>{report.hours_worked}</Text>
+                        <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(report.status) + '20' }]}>
+                            <Text style={[styles.statusBadgeText, { color: getStatusColor(report.status) }]}>
+                              {report.status.toUpperCase()}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    ))
+                  )}
+                </ScrollView>
+              </View>
+            )}
+          </View>
+        </SafeAreaView>
+      </Modal>
+
       <View style={{height: 40}} />
     </ScrollView>
   );
@@ -259,4 +347,27 @@ const styles = StyleSheet.create({
   tableCell: { fontSize: 14, color: '#1F2937' },
   statusChip: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
   statusText: { fontSize: 12, fontWeight: '600' },
+  modalContainer: { flex: 1, backgroundColor: '#F4F6F9' },
+  modalHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    padding: 16, backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: Brand.colors.border,
+  },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: Brand.colors.text },
+  modalSubtitle: { fontSize: 13, color: Brand.colors.textSecondary, marginTop: 2 },
+  closeBtn: { padding: 8 },
+  modalTableCard: {
+    backgroundColor: '#FFF', borderRadius: 12, borderWidth: 1, borderColor: Brand.colors.border,
+    flex: 1, overflow: 'hidden',
+  },
+  modalTableHeader: {
+    flexDirection: 'row', padding: 16, borderBottomWidth: 1, borderBottomColor: Brand.colors.border,
+    backgroundColor: '#F9FAFB',
+  },
+  modalCol: { fontSize: 13, fontWeight: '600', color: Brand.colors.textSecondary },
+  modalTableRow: {
+    flexDirection: 'row', padding: 16, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', alignItems: 'center',
+  },
+  modalCell: { fontSize: 13, color: Brand.colors.text, paddingRight: 8 },
+  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  statusBadgeText: { fontSize: 11, fontWeight: '700' },
 });

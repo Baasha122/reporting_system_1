@@ -7,12 +7,13 @@ import { useAuth } from '@/contexts/auth-context';
 import { supabase } from '@/lib/supabase';
 
 type Task = {
-  id: number;
-  report_date: string;
-  task_name: string;
-  work_description: string;
-  hours_worked: number;
-  status: string;
+  employee_ID: string;
+  Department: string;
+  Project_name: string;
+  Project_Id: string;
+  Task: string;
+  date: string;
+  duration: string;
 };
 
 export default function HistoryScreen() {
@@ -30,10 +31,10 @@ export default function HistoryScreen() {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('daily_reports')
+        .from('project')
         .select('*')
-        .eq('employee_id', user.id)
-        .order('created_at', { ascending: false });
+        .eq('employee_ID', user.employeeId)
+        .order('date', { ascending: false });
 
       if (error) throw error;
       setTasks(data || []);
@@ -57,22 +58,17 @@ export default function HistoryScreen() {
   const renderTask = ({ item }: { item: Task }) => (
     <View style={styles.taskCard}>
       <View style={styles.taskHeader}>
-        <Text style={styles.taskName}>{item.task_name}</Text>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}>
-          <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-            {item.status.replace('_', ' ').toUpperCase()}
-          </Text>
-        </View>
+        <Text style={styles.taskName}>{item.Project_name}</Text>
       </View>
-      <Text style={styles.taskDesc}>{item.work_description}</Text>
+      <Text style={styles.taskDesc}>{item.Task}</Text>
       <View style={styles.taskFooter}>
         <View style={styles.footerItem}>
           <Ionicons name="calendar-outline" size={14} color="#6B7280" />
-          <Text style={styles.footerText}>{item.report_date}</Text>
+          <Text style={styles.footerText}>{item.date}</Text>
         </View>
         <View style={styles.footerItem}>
           <Ionicons name="time-outline" size={14} color="#6B7280" />
-          <Text style={styles.footerText}>{item.hours_worked} hours</Text>
+          <Text style={styles.footerText}>{item.duration} duration</Text>
         </View>
       </View>
     </View>
@@ -95,7 +91,7 @@ export default function HistoryScreen() {
       ) : (
         <FlatList
           data={tasks}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item, index) => index.toString()}
           renderItem={renderTask}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
