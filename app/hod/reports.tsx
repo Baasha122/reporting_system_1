@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import React, { useEffect, useState, useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Alert, Platform, Modal, SafeAreaView } from 'react-native';
@@ -14,7 +14,7 @@ import { supabase } from '@/lib/supabase';
 export default function ReportsScreen() {
   const [reports, setReports] = useState<DailyReport[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<ReportStatus | 'all'>('all');
+  const [filter, setFilter] = useState<string>('all');
   const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(new Set());
   const [selectedEmployeeDetails, setSelectedEmployeeDetails] = useState<{ employee: any, reports: DailyReport[] } | null>(null);
   const [departmentEmployees, setDepartmentEmployees] = useState<any[]>([]);
@@ -39,7 +39,16 @@ export default function ReportsScreen() {
       }
 
       // 2. Fetch the reports
-      const data = await fetchReports(filter !== 'all' ? { status: filter } : undefined);
+      let fetchParams: any = undefined;
+      const today = new Date();
+      if (filter === 'weekly') {
+        const lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+        fetchParams = { dateFrom: lastWeek.toISOString().split('T')[0] };
+      } else if (filter === 'monthly') {
+        const lastMonth = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+        fetchParams = { dateFrom: lastMonth.toISOString().split('T')[0] };
+      }
+      const data = await fetchReports(fetchParams);
       setReports(data || []);
       setSelectedEmployees(new Set());
     } catch (error) {
@@ -58,7 +67,7 @@ export default function ReportsScreen() {
     }
   };
 
-  const renderFilter = (status: ReportStatus | 'all', label: string) => (
+  const renderFilter = (status: string, label: string) => (
     <TouchableOpacity
       style={[styles.filterChip, filter === status && styles.filterChipActive]}
       onPress={() => setFilter(status)}
@@ -92,7 +101,7 @@ export default function ReportsScreen() {
 
     // Merge in the actual reports
     reports.forEach((report) => {
-      const empId = report.employee_id || 'unknown';
+      const empId = (report as any).employee_id || report.employee?.id || 'unknown';
       if (!groups[empId]) {
         groups[empId] = {
           employee: report.employee || { id: 'unknown', name: 'Unknown', employee_id: 'N/A', department: '' },
@@ -158,14 +167,15 @@ export default function ReportsScreen() {
         const uniqueDays = new Set(group.reports.map(r => r.report_date)).size;
         const totalReports = group.reports.length;
         const totalHours = group.reports.reduce((sum, r) => sum + parseHours(r.hours_worked), 0);
-        // Calculate efficiency based on 26 total working days in a month (26 * 7 = 182 hours)
-        const efficiency = ((totalHours / (26 * 7)) * 100).toFixed(1) + '%';
+        const targetDays = filter === 'weekly' ? 6 : 26;
+        const targetHours = targetDays * 7;
+        const efficiency = ((totalHours / targetHours) * 100).toFixed(1) + '%';
         
         return {
           'Employee Name': group.employee?.name || '',
           'Employee ID': group.employee?.employee_id || '',
           'Department': group.employee?.department || '',
-          'No. of Days': `${uniqueDays} / 26`,
+          'No. of Days': `${uniqueDays} / ${targetDays}`,
           'Reports Submitted': totalReports,
           'Total Hours': parseFloat(totalHours.toFixed(1)),
           'Efficiency': efficiency,
@@ -222,7 +232,7 @@ export default function ReportsScreen() {
         URL.revokeObjectURL(url);
       } else {
         const wbout = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
-        const uri = FileSystem.cacheDirectory + fileName;
+        const uri = FileSystem.documentDirectory + fileName;
 
         await FileSystem.writeAsStringAsync(uri, wbout, {
           encoding: 'base64'
@@ -313,7 +323,7 @@ export default function ReportsScreen() {
         URL.revokeObjectURL(url);
       } else {
         const wbout = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
-        const uri = FileSystem.cacheDirectory + fileName;
+        const uri = FileSystem.documentDirectory + fileName;
 
         await FileSystem.writeAsStringAsync(uri, wbout, {
           encoding: 'base64'
@@ -347,9 +357,8 @@ export default function ReportsScreen() {
         </View>
         <View style={styles.filters}>
           {renderFilter('all', 'All')}
-          {renderFilter('submitted', 'Pending Review')}
-          {renderFilter('approved', 'Approved')}
-          {renderFilter('rejected', 'Rejected')}
+          {renderFilter('weekly', 'Weekly')}
+          {renderFilter('monthly', 'Monthly')} 
         </View>
       </View>
 
@@ -370,7 +379,9 @@ export default function ReportsScreen() {
               const uniqueDays = new Set(group.reports.map(r => r.report_date)).size;
               const totalReports = group.reports.length;
               const totalHours = group.reports.reduce((sum, r) => sum + parseHours(r.hours_worked), 0);
-              const efficiency = ((totalHours / (26 * 7)) * 100).toFixed(1);
+              const targetDays = filter === 'weekly' ? 6 : 26;
+              const targetHours = targetDays * 7;
+              const efficiency = ((totalHours / targetHours) * 100).toFixed(1);
 
               return (
                 <View
@@ -396,7 +407,7 @@ export default function ReportsScreen() {
                   <View style={styles.cardBody}>
                     <View style={styles.fieldRow}>
                       <Text style={styles.cardLabel}>No. of Days:</Text>
-                      <Text style={styles.cardValue}>{uniqueDays} / 26</Text>
+                      <Text style={styles.cardValue}>{uniqueDays} / {targetDays}</Text>
                     </View>
                     <View style={styles.fieldRow}>
                       <Text style={styles.cardLabel}>Reporting Submission:</Text>

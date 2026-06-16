@@ -24,7 +24,7 @@ export default function ClientHistoryScreen() {
       const { data, error } = await supabase
         .from('projects')
         .select('*')
-        .eq('department', user.department)
+        .eq('department', user?.department)
         .order('id', { ascending: false });
 
       if (error) throw error;
