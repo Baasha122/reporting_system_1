@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator, Platform, Alert, ScrollView, Modal, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
+import { Picker } from '@react-native-picker/picker';
 import { useAuth } from '@/contexts/auth-context';
 import { Brand } from '@/constants/brand';
 import { fetchReports } from '@/services/reports-api';
@@ -33,6 +34,7 @@ export default function ProjectsScreen() {
         .from('projects')
         .select('*')
         .eq('department', user.department)
+        .order('status', { ascending: false }) // 'onGoing' comes before 'close' in descending alphabetical order
         .order('datetime', { ascending: false });
       
       if (!error && data) {
@@ -90,9 +92,8 @@ export default function ProjectsScreen() {
     }
   };
 
-  const handleUpdateStatus = (projectId: string, currentStatus: string) => {
-    const newStatus = currentStatus === 'onGoing' ? 'close' : 'onGoing';
-    const actionText = currentStatus === 'onGoing' ? 'Mark as Completed' : 'Mark as Ongoing';
+  const handleUpdateStatus = (projectId: string, newStatus: string) => {
+    const actionText = newStatus === 'onGoing' ? 'Mark as Ongoing' : 'Mark as Completed';
     
     const updateStatus = async () => {
       try {
@@ -234,27 +235,39 @@ export default function ProjectsScreen() {
                 </View>
               ) : (
                 projects.map((proj, i) => (
-                  <TouchableOpacity key={proj.id || i} style={styles.tableRow} onPress={() => handleProjectClick(proj)}>
-                    <Text style={[styles.tableCell, {flex: 1, minWidth: 100, fontWeight: '500'}]}>{proj.projectid}</Text>
-                    <Text style={[styles.tableCell, {flex: 2, minWidth: 200}]} numberOfLines={1}>{proj.projectname}</Text>
-                    <Text style={[styles.tableCell, {flex: 2, minWidth: 200}]} numberOfLines={1}>{proj.customername || '-'}</Text>
-                    <View style={{flex: 1, minWidth: 100, alignItems: 'center'}}>
-                      <TouchableOpacity 
-                        onPress={() => handleUpdateStatus(proj.id, proj.status)}
-                        style={[
-                          styles.statusChip, 
-                          {backgroundColor: proj.status === 'onGoing' ? '#EBF4FF' : '#DEF7EC'}
-                        ]}
-                      >
-                        <Text style={[
-                          styles.statusText, 
-                          {color: proj.status === 'onGoing' ? '#0056FF' : '#03543F'}
-                        ]}>
-                          {proj.status === 'onGoing' ? 'ONGOING' : (proj.status === 'close' ? 'COMPLETED' : String(proj.status || 'UNKNOWN').toUpperCase())}
-                        </Text>
-                      </TouchableOpacity>
+                  <View key={proj.id || i} style={styles.tableRow}>
+                    <TouchableOpacity 
+                      style={{flex: 5, flexDirection: 'row', alignItems: 'center'}} 
+                      onPress={() => handleProjectClick(proj)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.tableCell, {flex: 1, minWidth: 100, fontWeight: '500'}]}>{proj.projectid}</Text>
+                      <Text style={[styles.tableCell, {flex: 2, minWidth: 200}]} numberOfLines={1}>{proj.projectname}</Text>
+                      <Text style={[styles.tableCell, {flex: 2, minWidth: 200}]} numberOfLines={1}>{proj.customername || '-'}</Text>
+                    </TouchableOpacity>
+                    <View style={{flex: 1, minWidth: 130, alignItems: 'center'}}>
+                      <View style={[
+                        styles.pickerContainer, 
+                        {backgroundColor: proj.status === 'onGoing' ? '#EBF4FF' : '#DEF7EC'}
+                      ]}>
+                        <Picker
+                          selectedValue={proj.status === 'onGoing' ? 'onGoing' : 'close'}
+                          style={[
+                            styles.picker, 
+                            {color: proj.status === 'onGoing' ? '#0056FF' : '#03543F'}
+                          ]}
+                          onValueChange={(itemValue) => {
+                            if (itemValue !== proj.status) {
+                              handleUpdateStatus(proj.id, itemValue);
+                            }
+                          }}
+                        >
+                          <Picker.Item label="ONGOING" value="onGoing" style={{fontSize: 12}} />
+                          <Picker.Item label="COMPLETED" value="close" style={{fontSize: 12}} />
+                        </Picker>
+                      </View>
                     </View>
-                  </TouchableOpacity>
+                  </View>
                 ))
               )}
             </View>
@@ -345,6 +358,8 @@ const styles = StyleSheet.create({
   tableCol: { fontSize: 12, fontWeight: '600', color: '#6B7280', textTransform: 'uppercase' },
   tableRow: { flexDirection: 'row', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', alignItems: 'center', paddingHorizontal: 8 },
   tableCell: { fontSize: 14, color: '#1F2937' },
+  pickerContainer: { borderRadius: 12, overflow: 'hidden', height: 32, justifyContent: 'center' },
+  picker: { height: 32, width: 130, backgroundColor: 'transparent', borderWidth: 0, fontSize: 12, fontWeight: '600' },
   statusChip: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
   statusText: { fontSize: 12, fontWeight: '600' },
   modalContainer: { flex: 1, backgroundColor: '#F4F6F9' },
