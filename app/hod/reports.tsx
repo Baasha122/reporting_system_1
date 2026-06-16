@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Picker } from '@react-native-picker/picker';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import React, { useEffect, useState, useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Alert, Platform, Modal, SafeAreaView } from 'react-native';
+import { ScrollView, StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Alert, Platform, Modal, SafeAreaView, TextInput, Pressable } from 'react-native';
 import * as XLSX from 'xlsx-js-style';
 
 import { Brand } from '@/constants/brand';
@@ -15,9 +16,15 @@ export default function ReportsScreen() {
   const [reports, setReports] = useState<DailyReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
+  const [reportType, setReportType] = useState<'projects' | 'employees' | ''>('');
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
   const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(new Set());
   const [selectedEmployeeDetails, setSelectedEmployeeDetails] = useState<{ employee: any, reports: DailyReport[] } | null>(null);
   const [departmentEmployees, setDepartmentEmployees] = useState<any[]>([]);
+  const [departmentProjects, setDepartmentProjects] = useState<any[]>([]);
 
   useEffect(() => {
     loadReports();
@@ -35,6 +42,14 @@ export default function ReportsScreen() {
         if (dept) {
           const { data: emps } = await supabase.from('profiles').select('*').eq('department', dept).eq('role', 'employee');
           setDepartmentEmployees(emps || []);
+
+          const { data: projs } = await supabase
+            .from('projects')
+            .select('projectname, projectid')
+            .eq('department', dept)
+            .eq('status', 'onGoing')
+            .order('projectname', { ascending: true });
+          setDepartmentProjects(projs || []);
         }
       }
 
@@ -47,6 +62,8 @@ export default function ReportsScreen() {
       } else if (filter === 'monthly') {
         const lastMonth = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
         fetchParams = { dateFrom: lastMonth.toISOString().split('T')[0] };
+      } else if (filter === 'reports') {
+        // No date filter, fetches all time for this department
       }
       const data = await fetchReports(fetchParams);
       setReports(data || []);
@@ -68,14 +85,28 @@ export default function ReportsScreen() {
   };
 
   const renderFilter = (status: string, label: string) => (
-    <TouchableOpacity
-      style={[styles.filterChip, filter === status && styles.filterChipActive]}
-      onPress={() => setFilter(status)}
+    <Pressable
+      style={({ hovered, pressed }) => [
+        styles.filterChip,
+        filter === status && styles.filterChipActive,
+        hovered && styles.filterChipHovered,
+        pressed && { opacity: 0.7 }
+      ] as any}
+      onPress={() => {
+        setFilter(status);
+        if (status !== 'reports') {
+          setReportType('');
+          setSelectedProjectId('');
+          setSelectedEmployeeId('');
+          setCustomStartDate('');
+          setCustomEndDate('');
+        }
+      }}
     >
       <Text style={[styles.filterText, filter === status && styles.filterTextActive]}>
         {label}
       </Text>
-    </TouchableOpacity>
+    </Pressable>
   );
 
   const toggleSelection = (empId: string) => {
@@ -88,11 +119,50 @@ export default function ReportsScreen() {
     setSelectedEmployees(newSet);
   };
 
+  const uniqueProjects = useMemo(() => {
+    const projects = new Set<string>();
+    reports.forEach(r => {
+      if (r.task_name) projects.add(r.task_name);
+    });
+    return Array.from(projects).sort();
+  }, [reports]);
+
+  const filteredReportsForDisplay = useMemo(() => {
+    let filtered = reports;
+    if (filter === 'reports') {
+      if (reportType === 'projects' && selectedProjectId) {
+        filtered = filtered.filter(r => r.task_name === selectedProjectId);
+        if (customStartDate) {
+          filtered = filtered.filter(r => r.report_date >= customStartDate);
+        }
+        if (customEndDate) {
+          filtered = filtered.filter(r => r.report_date <= customEndDate);
+        }
+      } else if (reportType === 'employees') {
+        if (selectedEmployeeId) {
+          filtered = filtered.filter(r => (r as any).employee_id === selectedEmployeeId || (r as any).actual_employee_id === selectedEmployeeId);
+        }
+        if (customStartDate) {
+          filtered = filtered.filter(r => r.report_date >= customStartDate);
+        }
+        if (customEndDate) {
+          filtered = filtered.filter(r => r.report_date <= customEndDate);
+        }
+      }
+    }
+    return filtered;
+  }, [reports, filter, reportType, selectedProjectId, selectedEmployeeId, customStartDate, customEndDate]);
+
   const groupedReports = useMemo(() => {
     // Start with all employees in the department (defaulting to 0 reports)
     const groups: Record<string, { employee: any, reports: DailyReport[] }> = {};
-    
-    departmentEmployees.forEach(emp => {
+
+    let employeesToGroup = departmentEmployees;
+    if (filter === 'reports' && reportType === 'employees' && selectedEmployeeId) {
+      employeesToGroup = employeesToGroup.filter(emp => emp.id === selectedEmployeeId || emp.employee_id === selectedEmployeeId);
+    }
+
+    employeesToGroup.forEach(emp => {
       groups[emp.id] = {
         employee: emp,
         reports: [],
@@ -100,7 +170,7 @@ export default function ReportsScreen() {
     });
 
     // Merge in the actual reports
-    reports.forEach((report) => {
+    filteredReportsForDisplay.forEach((report) => {
       const empId = (report as any).employee_id || report.employee?.id || 'unknown';
       if (!groups[empId]) {
         groups[empId] = {
@@ -110,9 +180,9 @@ export default function ReportsScreen() {
       }
       groups[empId].reports.push(report);
     });
-    
+
     return Object.values(groups).sort((a, b) => a.employee.name.localeCompare(b.employee.name));
-  }, [reports, departmentEmployees]);
+  }, [filteredReportsForDisplay, departmentEmployees, filter, reportType, selectedEmployeeId]);
 
   const groupedEmployeeTasks = useMemo(() => {
     if (!selectedEmployeeDetails) return [];
@@ -151,9 +221,30 @@ export default function ReportsScreen() {
     return isNaN(num) ? 0 : num;
   };
 
+  const selectedEmployeeEfficiency = useMemo(() => {
+    if (reportType !== 'employees' || !selectedEmployeeId) return null;
+    const totalWorked = filteredReportsForDisplay.reduce((sum, r) => sum + parseHours(r.hours_worked), 0);
+    
+    let targetDays = 26; // Default to monthly if no date range
+    if (customStartDate && customEndDate) {
+      const start = new Date(customStartDate);
+      const end = new Date(customEndDate);
+      const diffTime = Math.abs(end.getTime() - start.getTime());
+      targetDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    } else if (customStartDate) {
+      const start = new Date(customStartDate);
+      const end = new Date();
+      const diffTime = Math.abs(end.getTime() - start.getTime());
+      targetDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    }
+    
+    const targetHours = targetDays * 8;
+    return targetHours > 0 ? ((totalWorked / targetHours) * 100).toFixed(1) : '0.0';
+  }, [reportType, selectedEmployeeId, filteredReportsForDisplay, customStartDate, customEndDate]);
+
   const handleExport = async () => {
     // Group by employee for the export to match the cards
-    const exportData = selectedEmployees.size > 0 
+    const exportData = selectedEmployees.size > 0
       ? groupedReports.filter(g => selectedEmployees.has(g.employee.id))
       : groupedReports;
 
@@ -170,7 +261,7 @@ export default function ReportsScreen() {
         const targetDays = filter === 'weekly' ? 6 : 26;
         const targetHours = targetDays * 7;
         const efficiency = ((totalHours / targetHours) * 100).toFixed(1) + '%';
-        
+
         return {
           'Employee Name': group.employee?.name || '',
           'Employee ID': group.employee?.employee_id || '',
@@ -192,18 +283,18 @@ export default function ReportsScreen() {
         { wch: 15 }, // Total Hours
         { wch: 15 }, // Efficiency
       ];
-      
+
       // Apply styles: Center everything except values (D, E, F, G) which are right-aligned
       for (const key in ws) {
         if (key[0] === '!') continue;
         const col = key[0];
         const row = key.substring(1);
-        
+
         let hAlign = 'center';
         if (row !== '1' && ['D', 'E', 'F', 'G'].includes(col)) {
           hAlign = 'right'; // Values on the right
         }
-        
+
         ws[key].s = {
           font: row === '1' ? { bold: true, color: { rgb: "000000" } } : undefined,
           alignment: {
@@ -232,7 +323,7 @@ export default function ReportsScreen() {
         URL.revokeObjectURL(url);
       } else {
         const wbout = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
-        const uri = FileSystem.documentDirectory + fileName;
+        const uri = (FileSystem as any).documentDirectory + fileName;
 
         await FileSystem.writeAsStringAsync(uri, wbout, {
           encoding: 'base64'
@@ -252,7 +343,7 @@ export default function ReportsScreen() {
 
   const handleModalExport = async () => {
     if (!selectedEmployeeDetails) return;
-    
+
     const reportsToExport = selectedEmployeeDetails.reports;
 
     if (reportsToExport.length === 0) {
@@ -287,14 +378,14 @@ export default function ReportsScreen() {
         if (key[0] === '!') continue;
         const col = key[0];
         const row = key.substring(1);
-        
+
         let hAlign = 'center';
         if (row !== '1' && col === 'F') {
           hAlign = 'right'; // Hours Worked on the right
         } else if (row !== '1' && col === 'D') {
           hAlign = 'left'; // Task Description left-aligned
         }
-        
+
         ws[key].s = {
           font: row === '1' ? { bold: true, color: { rgb: "000000" } } : undefined,
           alignment: {
@@ -304,7 +395,7 @@ export default function ReportsScreen() {
           }
         };
       }
-      
+
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Employee Reports");
 
@@ -323,7 +414,7 @@ export default function ReportsScreen() {
         URL.revokeObjectURL(url);
       } else {
         const wbout = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
-        const uri = FileSystem.documentDirectory + fileName;
+        const uri = (FileSystem as any).documentDirectory + fileName;
 
         await FileSystem.writeAsStringAsync(uri, wbout, {
           encoding: 'base64'
@@ -342,23 +433,125 @@ export default function ReportsScreen() {
   };
 
   const { user } = useAuth();
-  
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <Text style={styles.title}>Employee Reports ({user?.department || 'Unknown Department'})</Text>
-          <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
+        {/* Wireframe format: Large centered banner for title */}
+        <View style={styles.bannerContainer}>
+          <Text style={styles.bannerTitle}>Employee Reports ({user?.department || 'Unknown Department'})</Text>
+          <Pressable
+            style={({ hovered, pressed }) => [
+              styles.exportBtnBanner,
+              hovered && styles.exportBtnBannerHovered,
+              pressed && { opacity: 0.7 }
+            ] as any}
+            onPress={handleExport}
+          >
             <Ionicons name="download-outline" size={16} color="#FFF" />
             <Text style={styles.exportBtnText}>
               Export {selectedEmployees.size > 0 ? `(${selectedEmployees.size} Emp)` : 'All'}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
-        <View style={styles.filters}>
-          {renderFilter('all', 'All')}
-          {renderFilter('weekly', 'Weekly')}
-          {renderFilter('monthly', 'Monthly')} 
+
+        <View style={styles.filtersContainer}>
+          {/* Wireframe format: Filters row aligned below the banner */}
+          <View style={styles.filters}>
+            {renderFilter('all', 'All')}
+            {renderFilter('reports', 'Reports')}
+            {renderFilter('weekly', 'Weekly')}
+            {renderFilter('monthly', 'Monthly')}
+          </View>
+          
+          {filter === 'reports' && (
+            <View style={styles.customDateContainer}>
+              {/* Wireframe format: Two large dropdowns side by side, then a Search button */}
+              <View style={styles.filterRow}>
+                <View style={styles.pickerWrapperLarge}>
+                  <Picker
+                    selectedValue={reportType}
+                    onValueChange={(itemValue) => {
+                      setReportType(itemValue as any);
+                      setSelectedProjectId('');
+                      setSelectedEmployeeId('');
+                    }}
+                    style={styles.pickerLarge}
+                  >
+                    <Picker.Item label="Select Type" value="" />
+                    <Picker.Item label="Projects" value="projects" />
+                    <Picker.Item label="Employees" value="employees" />
+                  </Picker>
+                </View>
+
+                <View style={styles.pickerWrapperLarge}>
+                  {reportType === 'projects' ? (
+                    <Picker
+                      selectedValue={selectedProjectId}
+                      onValueChange={(itemValue) => setSelectedProjectId(itemValue)}
+                      style={styles.pickerLarge}
+                    >
+                      <Picker.Item label="Select Project" value="" />
+                      {departmentProjects.map(p => (
+                        <Picker.Item key={p.projectid} label={p.projectname} value={p.projectname} />
+                      ))}
+                    </Picker>
+                  ) : reportType === 'employees' ? (
+                    <Picker
+                      selectedValue={selectedEmployeeId}
+                      onValueChange={(itemValue) => setSelectedEmployeeId(itemValue)}
+                      style={styles.pickerLarge}
+                    >
+                      <Picker.Item label="Select Employee" value="" />
+                      {departmentEmployees.map(emp => (
+                        <Picker.Item key={emp.id} label={`${emp.name} (${emp.employee_id})`} value={emp.id} />
+                      ))}
+                    </Picker>
+                  ) : (
+                    <Picker enabled={false} selectedValue="" onValueChange={() => {}} style={styles.pickerLarge}>
+                      <Picker.Item label="Select Sub-Type" value="" />
+                    </Picker>
+                  )}
+                </View>
+
+                <Pressable
+                  style={({ hovered, pressed }) => [
+                    styles.applyBtnLarge,
+                    hovered && styles.applyBtnLargeHovered,
+                    pressed && { opacity: 0.7 }
+                  ] as any}
+                  onPress={() => { }}
+                >
+                  <Text style={styles.applyBtnTextLarge}>Search</Text>
+                </Pressable>
+              </View>
+
+              {reportType === 'employees' && (
+                <View style={styles.filterRow}>
+                  <View style={styles.dateInputWrapper}>
+                    <Ionicons name="calendar-outline" size={16} color={Brand.colors.textSecondary} />
+                    <TextInput
+                      style={styles.dateInput}
+                      placeholder="Start Date (YYYY-MM-DD)"
+                      value={customStartDate}
+                      onChangeText={setCustomStartDate}
+                      placeholderTextColor={Brand.colors.textSecondary}
+                    />
+                  </View>
+                  <View style={styles.dateInputWrapper}>
+                    <Ionicons name="calendar-outline" size={16} color={Brand.colors.textSecondary} />
+                    <TextInput
+                      style={styles.dateInput}
+                      placeholder="End Date (YYYY-MM-DD)"
+                      value={customEndDate}
+                      onChangeText={setCustomEndDate}
+                      placeholderTextColor={Brand.colors.textSecondary}
+                    />
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
         </View>
       </View>
 
@@ -366,8 +559,95 @@ export default function ReportsScreen() {
         <View style={styles.center}>
           <ActivityIndicator size="large" color={Brand.colors.primary} />
         </View>
+      ) : filter === 'reports' ? (
+        <ScrollView contentContainerStyle={styles.reportListContainer} showsVerticalScrollIndicator={false}>
+          {reportType === 'employees' && selectedEmployeeId && (
+            <View style={styles.employeeDetailsSection}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <Text style={[styles.reportHeading, { marginBottom: 0 }]}>
+                  {departmentEmployees.find(e => e.id === selectedEmployeeId)?.name || 'Unknown Employee'}
+                </Text>
+                {selectedEmployeeEfficiency !== null && (
+                  <View style={[styles.statusBadge, { backgroundColor: Number(selectedEmployeeEfficiency) >= 100 ? Brand.colors.success + '20' : Brand.colors.warning + '20' }]}>
+                    <Text style={[styles.statusText, { color: Number(selectedEmployeeEfficiency) >= 100 ? Brand.colors.success : Brand.colors.warning }]}>
+                      Efficiency: {selectedEmployeeEfficiency}%
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {Object.entries(
+                filteredReportsForDisplay.reduce((acc, report) => {
+                  const proj = report.task_name || 'Unknown Project';
+                  if (!acc[proj]) acc[proj] = [];
+                  acc[proj].push(report);
+                  return acc;
+                }, {} as Record<string, DailyReport[]>)
+              ).map(([project, tasks]) => (
+                <View key={project} style={styles.projectGroup}>
+                  <Text style={styles.projectHeading}>{project}</Text>
+                  {tasks.map((task, idx) => (
+                    <View key={task.id || idx} style={styles.taskRow}>
+                      <Text style={styles.taskDesc} numberOfLines={2}>
+                        {extractTaskDescription(task.work_description)}
+                      </Text>
+                      <Text style={styles.taskDate}>
+                        {task.report_date}
+                      </Text>
+                      <Text style={styles.taskDuration}>
+                        {task.hours_worked} {String(task.hours_worked).includes(':') ? '' : 'hrs'}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              ))}
+
+              {filteredReportsForDisplay.length === 0 && (
+                <Text style={styles.emptyText}>No reports found for this employee in the selected date range.</Text>
+              )}
+            </View>
+          )}
+
+          {reportType === 'projects' && selectedProjectId && (
+            <View style={styles.employeeDetailsSection}>
+              <Text style={styles.reportHeading}>
+                Project: {selectedProjectId}
+              </Text>
+
+              {Object.entries(
+                filteredReportsForDisplay.reduce((acc, report) => {
+                  const empName = departmentEmployees.find(e => e.id === (report as any).employee_id || e.id === (report as any).actual_employee_id)?.name || 'Unknown Employee';
+                  if (!acc[empName]) acc[empName] = [];
+                  acc[empName].push(report);
+                  return acc;
+                }, {} as Record<string, DailyReport[]>)
+              ).map(([empName, tasks]) => (
+                <View key={empName} style={styles.projectGroup}>
+                  <Text style={styles.projectHeading}>{empName}</Text>
+                  {tasks.map((task, idx) => (
+                    <View key={task.id || idx} style={styles.taskRow}>
+                      <Text style={styles.taskDesc} numberOfLines={2}>
+                        {extractTaskDescription(task.work_description)}
+                      </Text>
+                      <Text style={styles.taskDate}>
+                        {task.report_date}
+                      </Text>
+                      <Text style={styles.taskDuration}>
+                        {task.hours_worked} {String(task.hours_worked).includes(':') ? '' : 'hrs'}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              ))}
+
+              {filteredReportsForDisplay.length === 0 && (
+                <Text style={styles.emptyText}>No reports found for this project.</Text>
+              )}
+            </View>
+          )}
+        </ScrollView>
       ) : (
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={styles.gridContainer}
           showsVerticalScrollIndicator={false}
         >
@@ -380,30 +660,39 @@ export default function ReportsScreen() {
               const totalReports = group.reports.length;
               const totalHours = group.reports.reduce((sum, r) => sum + parseHours(r.hours_worked), 0);
               const targetDays = filter === 'weekly' ? 6 : 26;
-              const targetHours = targetDays * 7;
+              const targetHours = targetDays * 8;
               const efficiency = ((totalHours / targetHours) * 100).toFixed(1);
 
               return (
-                <View
+                <Pressable
                   key={emp.id}
-                  style={[styles.card, selectedEmployees.has(emp.id) && styles.cardSelected]}
+                  style={({ hovered }) => [
+                    styles.card,
+                    selectedEmployees.has(emp.id) && styles.cardSelected,
+                    hovered && styles.cardHovered
+                  ] as any}
                 >
                   <View style={styles.cardHeader}>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.cardEmpName} numberOfLines={1}>{emp.name}</Text>
                       <Text style={styles.cardEmpId}>{emp.employee_id} • {emp.department}</Text>
                     </View>
-                    <TouchableOpacity 
-                      style={[styles.checkbox, selectedEmployees.has(emp.id) && styles.checkboxSelected]}
+                    <Pressable
+                      style={({ hovered, pressed }) => [
+                        styles.checkbox,
+                        selectedEmployees.has(emp.id) && styles.checkboxSelected,
+                        hovered && styles.checkboxHovered,
+                        pressed && { opacity: 0.7 }
+                      ] as any}
                       onPress={(e) => {
                         e.stopPropagation();
                         toggleSelection(emp.id);
                       }}
                     >
                       {selectedEmployees.has(emp.id) && <Ionicons name="checkmark" size={14} color="#FFF" />}
-                    </TouchableOpacity>
+                    </Pressable>
                   </View>
-                  
+
                   <View style={styles.cardBody}>
                     <View style={styles.fieldRow}>
                       <Text style={styles.cardLabel}>No. of Days:</Text>
@@ -426,14 +715,18 @@ export default function ReportsScreen() {
                   </View>
 
                   <View style={{ alignItems: 'flex-end', marginTop: 12 }}>
-                    <TouchableOpacity 
-                      style={styles.viewDetailsBtn}
+                    <Pressable
+                      style={({ hovered, pressed }) => [
+                        styles.viewDetailsBtn,
+                        hovered && styles.viewDetailsBtnHovered,
+                        pressed && { opacity: 0.7 }
+                      ] as any}
                       onPress={() => setSelectedEmployeeDetails(group)}
                     >
                       <Text style={styles.viewDetailsText}>View Details</Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   </View>
-                </View>
+                </Pressable>
               );
             })
           )}
@@ -452,64 +745,79 @@ export default function ReportsScreen() {
             <View style={styles.modalHeader}>
               <View>
                 <Text style={styles.modalTitle}>{selectedEmployeeDetails?.employee.name}'s Working Details</Text>
-              <Text style={styles.modalSubtitle}>{selectedEmployeeDetails?.employee.employee_id} • {selectedEmployeeDetails?.employee.department}</Text>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-              <TouchableOpacity style={[styles.exportBtn, { paddingVertical: 8, paddingHorizontal: 12 }]} onPress={handleModalExport}>
-                <Ionicons name="download-outline" size={16} color="#FFF" />
-                <Text style={styles.exportBtnText}>Export</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setSelectedEmployeeDetails(null)} style={styles.closeBtn}>
-                <Ionicons name="close" size={24} color={Brand.colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-          </View>
-          
-          <View style={{ flex: 1, padding: 16 }}>
-            <View style={styles.tableCard}>
-              <View style={styles.tableHeader}>
-                <Text style={[styles.col, { flex: 0.5 }]}>S.No</Text>
-                <Text style={[styles.col, { flex: 1.5 }]}>Project</Text>
-                <Text style={[styles.col, { flex: 2 }]}>Task Description</Text>
-                <Text style={[styles.col, { flex: 1.5 }]}>Date and Time</Text>
-                <Text style={[styles.col, { flex: 0.8, textAlign: 'center' }]}>Hrs</Text>
-                <Text style={[styles.col, { flex: 1, textAlign: 'right' }]}>Status</Text>
+                <Text style={styles.modalSubtitle}>{selectedEmployeeDetails?.employee.employee_id} • {selectedEmployeeDetails?.employee.department}</Text>
               </View>
-              <ScrollView showsVerticalScrollIndicator={false}>
-                {groupedEmployeeTasks.map((group, index) => (
-                  <View key={group.project} style={[styles.tableRow, { paddingVertical: 0, paddingHorizontal: 0, alignItems: 'stretch' }]}>
-                    <View style={{ flex: 2, flexDirection: 'row', padding: 16, borderRightWidth: 1, borderRightColor: '#F3F4F6' }}>
-                      <Text style={[styles.cell, { flex: 0.5, fontWeight: '700' }]}>{index + 1}</Text>
-                      <Text style={[styles.cell, styles.projectHighlight, { flex: 1.5, paddingRight: 8 }]} numberOfLines={2}>{group.project}</Text>
-                    </View>
-                    <View style={{ flex: 5.3, flexDirection: 'column' }}>
-                      {group.tasks.map((task, tIndex) => (
-                        <View key={task.id} style={{ 
-                          flexDirection: 'row', 
-                          padding: 16, 
-                          borderBottomWidth: tIndex < group.tasks.length - 1 ? 1 : 0, 
-                          borderBottomColor: '#F3F4F6',
-                          alignItems: 'center'
-                        }}>
-                          <Text style={[styles.cell, { flex: 2 }]} numberOfLines={3}>{extractTaskDescription(task.work_description)}</Text>
-                          <Text style={[styles.cell, { flex: 1.5 }]}>{task.report_date}</Text>
-                          <Text style={[styles.cell, { flex: 0.8, textAlign: 'center' }]}>{task.hours_worked}</Text>
-                          <View style={{ flex: 1, alignItems: 'flex-end' }}>
-                            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(task.status) + '20' }]}>
-                              <Text style={[styles.statusText, { color: getStatusColor(task.status) }]}>
-                                {task.status.toUpperCase()}
-                              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+                <Pressable
+                  style={({ hovered, pressed }) => [
+                    styles.exportBtn,
+                    { paddingVertical: 8, paddingHorizontal: 12 },
+                    hovered && styles.exportBtnHovered,
+                    pressed && { opacity: 0.7 }
+                  ] as any}
+                  onPress={handleModalExport}
+                >
+                  <Ionicons name="download-outline" size={16} color="#FFF" />
+                  <Text style={styles.exportBtnText}>Export</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setSelectedEmployeeDetails(null)}
+                  style={({ hovered, pressed }) => [
+                    styles.closeBtn,
+                    hovered && styles.closeBtnHovered,
+                    pressed && { opacity: 0.7 }
+                  ] as any}
+                >
+                  <Ionicons name="close" size={24} color={Brand.colors.textSecondary} />
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={{ flex: 1, padding: 16 }}>
+              <View style={styles.tableCard}>
+                <View style={styles.tableHeader}>
+                  <Text style={[styles.col, { flex: 0.5 }]}>S.No</Text>
+                  <Text style={[styles.col, { flex: 1.5 }]}>Project</Text>
+                  <Text style={[styles.col, { flex: 2 }]}>Task Description</Text>
+                  <Text style={[styles.col, { flex: 1.5 }]}>Date and Time</Text>
+                  <Text style={[styles.col, { flex: 0.8, textAlign: 'center' }]}>Hrs</Text>
+                  <Text style={[styles.col, { flex: 1, textAlign: 'right' }]}>Status</Text>
+                </View>
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  {groupedEmployeeTasks.map((group, index) => (
+                    <View key={group.project} style={[styles.tableRow, { paddingVertical: 0, paddingHorizontal: 0, alignItems: 'stretch' }]}>
+                      <View style={{ flex: 2, flexDirection: 'row', padding: 16, borderRightWidth: 1, borderRightColor: '#F3F4F6' }}>
+                        <Text style={[styles.cell, { flex: 0.5, fontWeight: '700' }]}>{index + 1}</Text>
+                        <Text style={[styles.cell, styles.projectHighlight, { flex: 1.5, paddingRight: 8 }]} numberOfLines={2}>{group.project}</Text>
+                      </View>
+                      <View style={{ flex: 5.3, flexDirection: 'column' }}>
+                        {group.tasks.map((task, tIndex) => (
+                          <View key={task.id} style={{
+                            flexDirection: 'row',
+                            padding: 16,
+                            borderBottomWidth: tIndex < group.tasks.length - 1 ? 1 : 0,
+                            borderBottomColor: '#F3F4F6',
+                            alignItems: 'center'
+                          }}>
+                            <Text style={[styles.cell, { flex: 2 }]} numberOfLines={3}>{extractTaskDescription(task.work_description)}</Text>
+                            <Text style={[styles.cell, { flex: 1.5 }]}>{task.report_date}</Text>
+                            <Text style={[styles.cell, { flex: 0.8, textAlign: 'center' }]}>{task.hours_worked}</Text>
+                            <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                              <View style={[styles.statusBadge, { backgroundColor: getStatusColor(task.status) + '20' }]}>
+                                <Text style={[styles.statusText, { color: getStatusColor(task.status) }]}>
+                                  {task.status.toUpperCase()}
+                                </Text>
+                              </View>
                             </View>
                           </View>
-                        </View>
-                      ))}
+                        ))}
+                      </View>
                     </View>
-                  </View>
-                ))}
-              </ScrollView>
+                  ))}
+                </ScrollView>
+              </View>
             </View>
           </View>
-        </View>
         </View>
       </Modal>
     </View>
@@ -517,10 +825,48 @@ export default function ReportsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: { marginBottom: 24 },
-  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  title: { fontSize: 24, fontWeight: '700', color: Brand.colors.text },
+  container: { flex: 1, padding: 24, backgroundColor: '#FAFAFA' },
+  header: { marginBottom: 32 },
+  bannerContainer: {
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: Brand.colors.border,
+    borderRadius: 12,
+    paddingVertical: 24,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  bannerTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: Brand.colors.text,
+    textAlign: 'center',
+  },
+  exportBtnBanner: {
+    position: 'absolute',
+    right: 24,
+    top: '50%',
+    transform: [{ translateY: -18 }],
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Brand.colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    gap: 8,
+  },
+  exportBtnBannerHovered: {
+    backgroundColor: Brand.colors.primaryDark || '#0041CC',
+    opacity: 0.9,
+  },
   exportBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -535,21 +881,192 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 14,
   },
-  filters: { flexDirection: 'row', gap: 12, flexWrap: 'wrap' },
+  filtersContainer: { gap: 24 },
+  filters: { flexDirection: 'row', gap: 16, flexWrap: 'wrap' },
   filterChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
     backgroundColor: '#FFF',
     borderWidth: 1,
     borderColor: Brand.colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  filterChipHovered: {
+    backgroundColor: '#F9FAFB',
+    borderColor: Brand.colors.primary,
   },
   filterChipActive: {
     backgroundColor: Brand.colors.primary,
     borderColor: Brand.colors.primary,
   },
-  filterText: { fontSize: 13, fontWeight: '500', color: Brand.colors.textSecondary },
+  filterText: { fontSize: 14, fontWeight: '600', color: Brand.colors.textSecondary },
   filterTextActive: { color: '#FFF' },
+  customDateContainer: {
+    gap: 16,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    flexWrap: 'wrap',
+  },
+  pickerWrapperLarge: {
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: Brand.colors.border,
+    borderRadius: 8,
+    height: 56,
+    flex: 1,
+    minWidth: 240,
+    justifyContent: 'center',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  pickerLarge: {
+    height: 56,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+    color: Brand.colors.text,
+    fontSize: 15,
+    fontWeight: '600',
+    paddingHorizontal: 16,
+  },
+  dateInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: Brand.colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    height: 56,
+    gap: 8,
+    minWidth: 240,
+  },
+  dateInput: {
+    flex: 1,
+    fontSize: 14,
+    color: Brand.colors.text,
+    height: '100%',
+  },
+  applyBtnLarge: {
+    backgroundColor: Brand.colors.primary,
+    paddingHorizontal: 32,
+    height: 56,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: Brand.colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  applyBtnLargeHovered: {
+    backgroundColor: Brand.colors.primaryDark || '#0041CC',
+    opacity: 0.9,
+  },
+  applyBtnTextLarge: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  reportListContainer: {
+    paddingBottom: 24,
+  },
+  employeeDetailsSection: {
+    backgroundColor: '#FFF',
+    padding: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Brand.colors.border,
+    marginTop: 8,
+    maxWidth: 900, // Prevents the card from stretching too wide on large screens
+  },
+  reportHeading: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: Brand.colors.text,
+    marginBottom: 16,
+  },
+  projectGroup: {
+    marginBottom: 16,
+    marginLeft: 16,
+  },
+  projectHeading: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Brand.colors.text,
+    marginBottom: 8,
+  },
+  taskRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+    marginLeft: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+    maxWidth: 600, // Brings the duration much closer to the task description
+  },
+  taskDesc: {
+    fontSize: 14,
+    color: Brand.colors.textSecondary,
+    flex: 1,
+    paddingRight: 16,
+  },
+  taskDate: {
+    fontSize: 14,
+    color: Brand.colors.textSecondary,
+    width: 100,
+    textAlign: 'center',
+    paddingRight: 16,
+  },
+  taskDuration: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Brand.colors.text,
+    width: 80,
+    textAlign: 'left', // Aligned left so it sits nicely next to the description
+  },
+  projectTableHeader: {
+    flexDirection: 'row',
+    paddingVertical: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: Brand.colors.border,
+    marginBottom: 8,
+  },
+  tableHeaderText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Brand.colors.text,
+  },
+  projectTableRow: {
+    flexDirection: 'row',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+    alignItems: 'center',
+  },
+  projectTableCell: {
+    fontSize: 14,
+    color: Brand.colors.text,
+  },
+  projectTableCellDesc: {
+    color: Brand.colors.textSecondary,
+    paddingRight: 16,
+  },
+  projectTableCellDuration: {
+    fontWeight: '600',
+  },
   gridContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -564,6 +1081,17 @@ const styles = StyleSheet.create({
     padding: 16,
     width: 320, // fixed width for cards to form a nice grid
     minHeight: 200,
+    transitionProperty: 'all',
+    transitionDuration: '200ms',
+  },
+  cardHovered: {
+    borderColor: Brand.colors.primary,
+    shadowColor: Brand.colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 4,
+    transform: [{ translateY: -2 }],
   },
   cardSelected: {
     borderColor: Brand.colors.primary,
@@ -597,6 +1125,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  checkboxHovered: {
+    borderColor: Brand.colors.primary,
+  },
   checkboxSelected: {
     backgroundColor: Brand.colors.primary,
     borderColor: Brand.colors.primary,
@@ -627,6 +1158,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
+  },
+  viewDetailsBtnHovered: {
+    backgroundColor: '#FDE68A', // Slightly darker yellow on hover
   },
   viewDetailsText: {
     color: '#D97706',
@@ -666,6 +1200,13 @@ const styles = StyleSheet.create({
   },
   closeBtn: {
     padding: 8,
+  },
+  closeBtnHovered: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 20,
+  },
+  exportBtnHovered: {
+    backgroundColor: Brand.colors.primaryDark || '#0041CC',
   },
   tableCard: {
     backgroundColor: '#FFF',
