@@ -29,6 +29,7 @@ export function RegisterForm() {
   
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
 
   const handleRegister = async () => {
     if (!name.trim() || !email.trim() || !department.trim() || !password.trim()) {
@@ -47,13 +48,52 @@ export function RegisterForm() {
     const result = await register(name, email, password, department);
     setIsSubmitting(false);
 
-    if (!result.success || !result.user) {
+    if (!result.success) {
       setError(result.error ?? 'Registration failed. Please try again.');
       return;
     }
 
-    router.replace(getDashboardRoute(result.user.role));
+    setIsSuccess(true);
   };
+
+  if (isSuccess) {
+    return (
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <View style={styles.scrollContent}>
+          <View style={styles.card}>
+            <View style={styles.header}>
+              <View style={styles.logoContainer}>
+                 <Image
+                   source={require('@/assets/images/barani-logo.png')}
+                   style={styles.logo}
+                   contentFit="contain"
+                 />
+              </View>
+              <Text style={styles.companyName}>BARANI HYDRAULICS INDIA{'\n'}PVT LTD</Text>
+            </View>
+
+            <View style={{ alignItems: 'center', marginBottom: 24 }}>
+              <Ionicons name="checkmark-circle" size={64} color={Brand.colors.success} />
+              <Text style={{ fontSize: 20, fontWeight: 'bold', color: Brand.colors.text, marginTop: 16, textAlign: 'center' }}>
+                Registration Submitted!
+              </Text>
+              <Text style={{ fontSize: 16, color: Brand.colors.textSecondary, marginTop: 8, textAlign: 'center', lineHeight: 24 }}>
+                Your account has been created successfully. Please wait for your Head of Department to approve your account before you can log in.
+              </Text>
+            </View>
+
+            <Pressable
+              style={styles.loginButton}
+              onPress={() => router.replace('/login')}>
+              <Text style={styles.loginButtonText}>Back to Login</Text>
+            </Pressable>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    );
+  }
 
   return (
     <KeyboardAvoidingView

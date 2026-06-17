@@ -13,7 +13,6 @@ export default function EmployeeSettingsScreen() {
   const [saving, setSaving] = useState(false);
   const [resettingPassword, setResettingPassword] = useState(false);
   const [resetEmpId, setResetEmpId] = useState('');
-  const [resetEmail, setResetEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [form, setForm] = useState({
     name: user?.name || '',
@@ -44,15 +43,14 @@ export default function EmployeeSettingsScreen() {
   };
 
   const handleResetPassword = async () => {
-    if (!resetEmpId.trim() || !resetEmail.trim() || !newPassword.trim()) {
-      alert('Please fill in all fields (Employee ID, Email, and New Password).');
+    if (!resetEmpId.trim() || !newPassword.trim()) {
+      alert('Please fill in all fields (Employee ID and New Password).');
       return;
     }
     
-    // First, verify if the current user matches the provided Employee ID and Email
-    if (resetEmpId.trim().toUpperCase() !== user?.employeeId?.toUpperCase() || 
-        resetEmail.trim().toLowerCase() !== user?.email?.toLowerCase()) {
-      alert('The provided Employee ID and Email do not match your current logged-in account.');
+    // First, verify if the current user matches the provided Employee ID
+    if (resetEmpId.trim().toUpperCase() !== user?.employeeId?.toUpperCase()) {
+      alert('The provided Employee ID does not match your current logged-in account.');
       return;
     }
 
@@ -127,7 +125,7 @@ export default function EmployeeSettingsScreen() {
       <View style={[styles.card, { marginTop: 0 }]}>
         <Text style={styles.sectionTitle}>Reset Password</Text>
         <Text style={styles.descriptionText}>
-          To change your password, please verify your Employee ID and Email Address, then enter a new password.
+          To change your password, please verify your Employee ID, then enter a new password.
         </Text>
         
         <View style={styles.formGroup}>
@@ -139,19 +137,6 @@ export default function EmployeeSettingsScreen() {
             value={resetEmpId}
             onChangeText={setResetEmpId}
             autoCapitalize="characters"
-          />
-        </View>
-
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Email Address</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter your email address"
-            placeholderTextColor="#9CA3AF"
-            value={resetEmail}
-            onChangeText={setResetEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
           />
         </View>
 
@@ -168,9 +153,9 @@ export default function EmployeeSettingsScreen() {
         </View>
 
         <TouchableOpacity 
-          style={[styles.resetBtn, (resettingPassword || !resetEmpId.trim() || !resetEmail.trim() || !newPassword.trim()) && styles.saveBtnDisabled]} 
+          style={[styles.resetBtn, (resettingPassword || !resetEmpId.trim() || !newPassword.trim()) && styles.saveBtnDisabled]} 
           onPress={handleResetPassword}
-          disabled={resettingPassword || !resetEmpId.trim() || !resetEmail.trim() || !newPassword.trim()}
+          disabled={resettingPassword || !resetEmpId.trim() || !newPassword.trim()}
         >
           <Ionicons name="lock-closed-outline" size={20} color="#FFF" style={{ marginRight: 8 }} />
           <Text style={styles.saveBtnText}>{resettingPassword ? 'Updating...' : 'Update Password'}</Text>

@@ -112,6 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           role: userRole,
           department: data.department,
           designation: data.designation,
+          status: data.status || 'pending',
         });
       }
     } catch (error) {
@@ -236,6 +237,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .single();
 
         // If profile is missing (no trigger fired), and it's a magic HOD account, manually rescue it!
+        if (profile && email.toLowerCase().includes('hod@barani.com')) {
+          if (profile.role !== 'hod' || profile.status !== 'approved') {
+            await supabase.from('profiles').update({ role: 'hod', status: 'approved' }).eq('id', data.user.id);
+            profile.role = 'hod';
+            profile.status = 'approved';
+          }
+        }
+
         if (!profile && email.toLowerCase().includes('hod@barani.com')) {
           const prefix = email.substring(0, 2).toUpperCase();
           const HOD_MAP: Record<string, string> = {
@@ -250,13 +259,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             name: `${correctDept} Head`,
             department: correctDept,
             role: 'hod',
-            email: email
+            email: email,
+            designation: 'Head of Department',
+            status: 'approved'
           };
           await supabase.from('profiles').insert([rescueProfile]);
           profile = rescueProfile;
         }
 
         if (profile) {
+          // Auto-repair HOD accounts that might have been created with the wrong role/status by the trigger
+          if (data.user.email?.toLowerCase().includes('hod@barani.com') && (profile.role !== 'hod' || profile.status !== 'approved')) {
+            await supabase.from('profiles').update({ role: 'hod', status: 'approved' }).eq('id', data.user.id);
+            profile.role = 'hod';
+            profile.status = 'approved';
+          }
+
           let userRole = profile.role as UserRole;
           
           // Auto-Correction: If they registered manually, their role might be 'employee'. 
@@ -282,6 +300,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             
             if (profile.role !== 'hod') updates.role = 'hod';
             if (profile.department !== correctDept) updates.department = correctDept;
+            if (profile.status !== 'approved') updates.status = 'approved';
             
             if (!isHodId && isHodEmail) {
               updates.employee_id = `${prefix}HOD`;
@@ -302,8 +321,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             role: userRole,
             department: profile.department,
             designation: profile.designation,
+            status: profile.status || 'pending',
           };
           
+          if (userObj.status === 'pending') {
+            await supabase.auth.signOut();
+            return { success: false, error: 'Your account is pending HOD approval.' };
+          }
+          if (userObj.status === 'rejected') {
+            await supabase.auth.signOut();
+            return { success: false, error: 'Your account registration was rejected.' };
+          }
+
           // Forcefully update local state instantly to prevent any race condition with the router!
           setUser(userObj);
           
@@ -390,14 +419,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (!existingProfile) {
           // Trigger didn't run, manually insert the profile
-          await supabase.from('profiles').insert([{
+          const { error: insertError } = await supabase.from('profiles').insert([{
             id: data.user.id,
             name,
             department,
             employee_id: generatedEmployeeId,
             role: 'employee',
-            email
+            email,
+            designation: 'Employee',
+            status: 'pending'
           }]);
+
+          if (insertError) {
+             return { success: false, error: 'Database insert failed: ' + insertError.message };
+          }
         } else {
           // Trigger ran, just update it
           await supabase
@@ -411,11 +446,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         // 4. Fetch the final profile
-        const { data: profile } = await supabase
+        const { data: profile, error: profileFetchError } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', data.user.id)
           .single();
+
+        if (profileFetchError) {
+          return { success: false, error: 'Fetch failed: ' + profileFetchError.message };
+        }
 
         if (profile) {
           const userObj: User = {
@@ -426,13 +465,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             role: profile.role as UserRole,
             department: profile.department,
             designation: profile.designation,
+            status: profile.status || 'pending',
           };
-          // Set user manually if they aren't auto-logged in by the listener yet
-          setUser(userObj);
-          return { success: true, user: userObj };
+          
+          // Prevent auto-login for new employees, force them to wait for approval
+          await supabase.auth.signOut();
+          
+          return { success: true };
         }
       }
-      return { success: false, error: 'User profile not found after registration' };
+      return { success: false, error: 'Unknown error occurred after registration' };
     } catch (e: any) {
       return {
         success: false,

@@ -9,15 +9,20 @@ import { useAuth } from '@/contexts/auth-context';
 const EMPLOYEE_NAV_ITEMS = [
   { name: 'Home', path: '/employee', icon: 'home' as const },
   { name: 'History', path: '/employee/history', icon: 'time-outline' as const },
+  { name: 'Settings', path: '/employee/settings', icon: 'settings-outline' as const },
+  { name: 'Support', path: '/employee/support', icon: 'headset-outline' as const },
 ];
 
 const HOD_NAV_ITEMS = [
   { name: 'Dashboard', path: '/hod', icon: 'home' as const },
+  { name: 'Employee Management', path: '/hod/employee-management', icon: 'people-circle-outline' as const },
   { name: 'Employee Search', path: '/hod/search', icon: 'people-outline' as const },
   { name: 'Reports', path: '/hod/reports', icon: 'bar-chart-outline' as const },
   { name: 'Monthly Reports', path: '/hod/monthly', icon: 'calendar-outline' as const },
   { name: 'Client History', path: '/hod/history', icon: 'time-outline' as const },
   { name: 'Projects', path: '/hod/projects', icon: 'folder-open-outline' as const },
+  { name: 'Settings', path: '/hod/settings', icon: 'settings-outline' as const },
+  { name: 'Support', path: '/hod/support', icon: 'headset-outline' as const },
 ];
 
 export function Sidebar({ isMobile }: { isMobile?: boolean }) {

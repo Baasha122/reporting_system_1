@@ -19,11 +19,16 @@ export function TopHeader({ subtitle }: { subtitle?: string }) {
 
   return (
     <View style={[styles.container, isMobile && { height: 60 + insets.top, paddingTop: insets.top, paddingHorizontal: 16 }, { zIndex: 50 }]}>
-      <View style={styles.titleContainer}>
-        <Text style={[styles.title, isMobile && { fontSize: 16 }]}>REPORTING SYSTEM</Text>
-        {subtitle && !isMobile && <Text style={styles.subtitle}>{subtitle}</Text>}
+      <View style={styles.leftContainer}>
+        <TouchableOpacity style={styles.supportButton} onPress={() => router.push((user?.role === 'hod' ? '/hod/support' : '/employee/support') as any)}>
+          <Ionicons name="headset-outline" size={22} color={Brand.colors.primary} />
+        </TouchableOpacity>
+        <View style={styles.titleContainer}>
+          <Text style={[styles.title, isMobile && { fontSize: 16 }]}>REPORTING SYSTEM</Text>
+          {subtitle && !isMobile && <Text style={styles.subtitle}>{subtitle}</Text>}
+        </View>
       </View>
-      
+
       <View style={{ zIndex: 100 }}>
         <TouchableOpacity style={styles.profileContainer} onPress={() => setDropdownVisible(!dropdownVisible)}>
           <View style={styles.profileTextContainer}>
@@ -45,7 +50,7 @@ export function TopHeader({ subtitle }: { subtitle?: string }) {
 
         {dropdownVisible && (
           <View style={[styles.dropdown, { top: isMobile ? 40 : 50 }]}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.dropdownItem}
               onPress={() => {
                 setDropdownVisible(false);
@@ -55,7 +60,7 @@ export function TopHeader({ subtitle }: { subtitle?: string }) {
               <Ionicons name="settings-outline" size={18} color={Brand.colors.textSecondary} />
               <Text style={styles.dropdownItemText}>Settings</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.dropdownItem}
               onPress={() => {
                 setDropdownVisible(false);
@@ -82,6 +87,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 32,
+  },
+  leftContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  supportButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#E6F0FF',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   titleContainer: {
     flex: 1,
