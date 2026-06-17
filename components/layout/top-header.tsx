@@ -45,18 +45,16 @@ export function TopHeader({ subtitle }: { subtitle?: string }) {
 
         {dropdownVisible && (
           <View style={[styles.dropdown, { top: isMobile ? 40 : 50 }]}>
-            {user?.role === 'hod' && (
-              <TouchableOpacity 
-                style={styles.dropdownItem}
-                onPress={() => {
-                  setDropdownVisible(false);
-                  router.push('/hod/settings');
-                }}
-              >
-                <Ionicons name="settings-outline" size={18} color={Brand.colors.textSecondary} />
-                <Text style={styles.dropdownItemText}>Settings</Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity 
+              style={styles.dropdownItem}
+              onPress={() => {
+                setDropdownVisible(false);
+                router.push((user?.role === 'hod' ? '/hod/settings' : '/employee/settings') as any);
+              }}
+            >
+              <Ionicons name="settings-outline" size={18} color={Brand.colors.textSecondary} />
+              <Text style={styles.dropdownItemText}>Settings</Text>
+            </TouchableOpacity>
             <TouchableOpacity 
               style={styles.dropdownItem}
               onPress={() => {

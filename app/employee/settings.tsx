@@ -7,7 +7,7 @@ import { Brand } from '@/constants/brand';
 import { useAuth } from '@/contexts/auth-context';
 import { supabase } from '@/lib/supabase';
 
-export default function SettingsScreen() {
+export default function EmployeeSettingsScreen() {
   const { user } = useAuth();
   const handleLogout = useLogout();
   const [saving, setSaving] = useState(false);
@@ -91,18 +91,18 @@ export default function SettingsScreen() {
         <View style={styles.formGroup}>
           <Text style={styles.label}>Department</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, styles.inputDisabled]}
             value={form.department}
-            onChangeText={(text) => setForm({ ...form, department: text })}
+            editable={false}
           />
         </View>
 
         <View style={styles.formGroup}>
           <Text style={styles.label}>Designation</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, styles.inputDisabled]}
             value={form.designation}
-            onChangeText={(text) => setForm({ ...form, designation: text })}
+            editable={false}
           />
         </View>
 
@@ -123,7 +123,7 @@ export default function SettingsScreen() {
           <Text style={styles.saveBtnText}>{saving ? 'Saving...' : 'Save Changes'}</Text>
         </TouchableOpacity>
       </View>
-
+      
       <View style={[styles.card, { marginTop: 0 }]}>
         <Text style={styles.sectionTitle}>Reset Password</Text>
         <Text style={styles.descriptionText}>
@@ -249,9 +249,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 12,
   },
-  saveBtnDisabled: {
-    opacity: 0.7,
-  },
   resetBtn: {
     backgroundColor: '#4B5563', // gray-600
     height: 44,
@@ -259,6 +256,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
+  },
+  saveBtnDisabled: {
+    opacity: 0.7,
   },
   saveBtnText: {
     color: '#FFF',

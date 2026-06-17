@@ -145,6 +145,35 @@ export default function HodDashboard() {
     }
   };
 
+  const handleDeleteEmployee = async () => {
+    if (!searchedEmployee) return;
+    
+    if (typeof window !== 'undefined') {
+      if (!window.confirm(`Are you sure you want to delete ${searchedEmployee.name} (${searchedEmployee.employee_id})? This action cannot be undone.`)) {
+        return;
+      }
+    }
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', searchedEmployee.id);
+        
+      if (error) {
+        throw error;
+      }
+      
+      alert('Employee account deleted successfully.');
+      setSearchedEmployee(null);
+      setEmployeeReports([]);
+      setSearchId('');
+      fetchDepartmentStats(); // Refresh stats
+    } catch (err: any) {
+      alert('Failed to delete employee: ' + err.message + '\n\nNote: You may need to add a DELETE policy for profiles in Supabase.');
+    }
+  };
+
   const currentMonthName = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
 
   // Summary calculations for searched employee
@@ -480,10 +509,16 @@ export default function HodDashboard() {
                   <Text style={styles.metaText}><Text style={styles.metaLabel}>Department</Text>    : {searchedEmployee.department}</Text>
                   <Text style={styles.metaText}><Text style={styles.metaLabel}>Month</Text>         : <Text style={{color: '#0056FF', fontWeight: '600'}}>{currentMonthName}</Text></Text>
                 </View>
-                <TouchableOpacity style={styles.downloadBtn} onPress={handleDownloadExcel}>
-                  <Ionicons name="download-outline" size={16} color="#0056FF" />
-                  <Text style={styles.downloadBtnText}>Download Report</Text>
-                </TouchableOpacity>
+                <View style={{ gap: 10, alignItems: 'flex-end' }}>
+                  <TouchableOpacity style={styles.downloadBtn} onPress={handleDownloadExcel}>
+                    <Ionicons name="download-outline" size={16} color="#0056FF" />
+                    <Text style={styles.downloadBtnText}>Download Report</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteEmployee}>
+                    <Ionicons name="trash-outline" size={16} color="#DC2626" />
+                    <Text style={styles.deleteBtnText}>Delete Employee</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
 
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20, paddingHorizontal: 20 }}>
@@ -690,6 +725,22 @@ const styles = StyleSheet.create({
   },
   downloadBtnText: {
     color: '#0056FF',
+    fontWeight: '500',
+    fontSize: 13,
+  },
+  deleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#DC2626',
+    backgroundColor: '#FEF2F2',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+    gap: 6,
+  },
+  deleteBtnText: {
+    color: '#DC2626',
     fontWeight: '500',
     fontSize: 13,
   },
