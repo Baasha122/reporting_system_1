@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import React, { useEffect, useState, useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Alert, Platform, Modal, SafeAreaView, TextInput, Pressable } from 'react-native';
@@ -834,10 +834,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 24,
     paddingHorizontal: 24,
-    alignItems: 'center',
+    flexDirection: 'column',
     justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
     marginBottom: 24,
-    position: 'relative',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -851,10 +852,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   exportBtnBanner: {
-    position: 'absolute',
-    right: 24,
-    top: '50%',
-    transform: [{ translateY: -18 }],
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Brand.colors.primary,
