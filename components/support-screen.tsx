@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
-import { StyleSheet, Text, View, ScrollView, Image } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Brand } from '@/constants/brand';
 
@@ -8,7 +7,7 @@ export default function SupportScreen() {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Image 
+        <Image
           source={{ uri: 'https://www.facultyplus.com/wp-content/uploads/2024/09/logo-4.png' }}
           style={styles.logoImage}
           resizeMode="contain"
@@ -17,6 +16,20 @@ export default function SupportScreen() {
         <Text style={styles.subtitle}>
           If you're experiencing issues or need assistance, please reach out to our support team.
         </Text>
+
+        {/* Project Guide Card */}
+        <View style={[styles.card, styles.guideCard]}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="ribbon" size={24} color={Brand.colors.primary} />
+            <Text style={[styles.cardTitle, styles.guideTitle]}>GUIDE BY SUBBURAM</Text>
+          </View>
+          {/* <View style={styles.guideDetails}>
+            <Text style={styles.guideName}>Dr. S. Subburam, M.E., Ph.D.</Text>
+            <Text style={styles.guideRole}>Professor & Head</Text>
+            <Text style={styles.guideDept}>Department of Information Technology</Text>
+            <Text style={styles.guideCollege}>New Prince Shri Bhavani College of Engineering & Technology</Text>
+          </View> */}
+        </View>
 
         <View style={styles.card}>
           <View style={styles.cardHeader}>
@@ -103,6 +116,40 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
+  guideCard: {
+    borderColor: Brand.colors.primary,
+    borderWidth: 2,
+    backgroundColor: '#F0F5FF', // Sleek soft blue highlight
+  },
+  guideTitle: {
+    color: Brand.colors.primary,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  guideDetails: {
+    marginLeft: 36,
+    gap: 4,
+  },
+  guideName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Brand.colors.text,
+  },
+  guideRole: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: Brand.colors.textSecondary,
+  },
+  guideDept: {
+    fontSize: 13,
+    color: Brand.colors.textSecondary,
+  },
+  guideCollege: {
+    fontSize: 12,
+    color: '#8B949E',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -121,7 +168,7 @@ const styles = StyleSheet.create({
   },
   cardSubText: {
     fontSize: 14,
-    color: Brand.colors.textMuted,
+    color: Brand.colors.textMuted || '#8B949E',
     marginLeft: 36,
     marginTop: 4,
   },
