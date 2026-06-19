@@ -100,3 +100,144 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+-- HOD User Management additions (CRUD support via RPCs)
+
+-- Allow HODs to update profiles in their department
+CREATE POLICY "HODs can update profiles in their department" ON public.profiles
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles AS auth_profile
+      WHERE auth_profile.id = auth.uid()
+      AND auth_profile.role = 'hod'
+      AND auth_profile.department = public.profiles.department
+    )
+  );
+
+-- Secure function to change another user's password (ordered alphabetically)
+CREATE OR REPLACE FUNCTION public.change_user_password(new_password TEXT, target_user_id UUID)
+RETURNS BOOLEAN AS $$
+DECLARE
+  caller_role user_role;
+  caller_dept TEXT;
+  target_dept TEXT;
+BEGIN
+  -- Get caller profile info
+  SELECT role, department INTO caller_role, caller_dept
+  FROM public.profiles
+  WHERE id = auth.uid();
+
+  -- Verify caller is HOD
+  IF caller_role != 'hod' THEN
+    RAISE EXCEPTION 'Only HODs can change passwords';
+  END IF;
+
+  -- Get target user department
+  SELECT department INTO target_dept
+  FROM public.profiles
+  WHERE id = target_user_id;
+
+  -- Verify department matches
+  IF caller_dept != target_dept THEN
+    RAISE EXCEPTION 'Can only manage users in your own department';
+  END IF;
+
+  -- Update password in auth.users
+  UPDATE auth.users
+  SET encrypted_password = crypt(new_password, gen_salt('bf'))
+  WHERE id = target_user_id;
+
+  RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Secure function to create an approved user directly (ordered alphabetically)
+CREATE OR REPLACE FUNCTION public.create_user_by_hod(
+  new_designation TEXT,
+  new_email TEXT,
+  new_employee_id TEXT,
+  new_name TEXT,
+  new_password TEXT
+)
+RETURNS UUID AS $$
+DECLARE
+  caller_role user_role;
+  caller_dept TEXT;
+  new_user_id UUID;
+BEGIN
+  -- Get caller profile
+  SELECT role, department INTO caller_role, caller_dept
+  FROM public.profiles
+  WHERE id = auth.uid();
+
+  -- Verify HOD
+  IF caller_role != 'hod' THEN
+    RAISE EXCEPTION 'Only HODs can create users';
+  END IF;
+
+  -- Insert into auth.users
+  INSERT INTO auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token, email_change, email_change_token_new, recovery_token)
+  VALUES (
+    '00000000-0000-0000-0000-000000000000',
+    gen_random_uuid(),
+    'authenticated',
+    'authenticated',
+    new_email,
+    crypt(new_password, gen_salt('bf')),
+    now(),
+    '{"provider":"email","providers":["email"]}',
+    jsonb_build_object('name', new_name, 'employee_id', new_employee_id, 'department', caller_dept, 'designation', new_designation, 'role', 'employee'),
+    now(),
+    now(),
+    '',
+    '',
+    '',
+    ''
+  )
+  RETURNING id INTO new_user_id;
+
+  -- Manually rescue/insert profiles row in case trigger lags (set status as approved)
+  INSERT INTO public.profiles (id, employee_id, name, email, department, designation, role, status)
+  VALUES (new_user_id, new_employee_id, new_name, new_email, caller_dept, new_designation, 'employee', 'approved')
+  ON CONFLICT (id) DO UPDATE 
+  SET name = new_name, designation = new_designation, employee_id = new_employee_id, status = 'approved';
+
+  RETURN new_user_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Secure function to delete a user (ordered alphabetically)
+CREATE OR REPLACE FUNCTION public.delete_user_by_hod(target_user_id UUID)
+RETURNS BOOLEAN AS $$
+DECLARE
+  caller_role user_role;
+  caller_dept TEXT;
+  target_dept TEXT;
+BEGIN
+  -- Get caller info
+  SELECT role, department INTO caller_role, caller_dept
+  FROM public.profiles
+  WHERE id = auth.uid();
+
+  -- Verify HOD
+  IF caller_role != 'hod' THEN
+    RAISE EXCEPTION 'Only HODs can delete users';
+  END IF;
+
+  -- Get target info
+  SELECT department INTO target_dept
+  FROM public.profiles
+  WHERE id = target_user_id;
+
+  -- Verify department
+  IF caller_dept != target_dept THEN
+    RAISE EXCEPTION 'Can only delete users in your own department';
+  END IF;
+
+  DELETE FROM auth.users WHERE id = target_user_id;
+  DELETE FROM public.profiles WHERE id = target_user_id;
+
+  RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
