@@ -7,11 +7,19 @@ export default function SupportScreen() {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Image 
-          source={require('@/assets/images/barani-logo.png')}
-          style={styles.logoImage}
-          resizeMode="contain"
-        />
+        <View style={styles.logosContainer}>
+          <Image 
+            source={{ uri: 'https://www.facultyplus.com/wp-content/uploads/2024/09/logo-4.png' }}
+            style={styles.collegeLogo}
+            resizeMode="contain"
+          />
+          <View style={styles.logoDivider} />
+          <Image 
+            source={require('@/assets/images/barani-logo.png')}
+            style={styles.companyLogo}
+            resizeMode="contain"
+          />
+        </View>
         <Text style={styles.title}>How can we help you?</Text>
         <Text style={styles.subtitle}>
           If you're experiencing issues or need assistance, please reach out to our support team.
@@ -83,11 +91,27 @@ const styles = StyleSheet.create({
     width: '100%',
     alignSelf: 'center',
   },
-  logoImage: {
-    width: 300,
-    height: 80,
-    marginBottom: 24,
+  logosContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 20,
+    marginBottom: 32,
     marginTop: 16,
+    flexWrap: 'wrap',
+  },
+  collegeLogo: {
+    width: 180,
+    height: 70,
+  },
+  logoDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: Brand.colors.border,
+  },
+  companyLogo: {
+    width: 220,
+    height: 70,
   },
   title: {
     fontSize: 24,
