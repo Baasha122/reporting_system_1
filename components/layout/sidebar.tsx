@@ -68,7 +68,7 @@ export function Sidebar({ isMobile }: { isMobile?: boolean }) {
     <View style={styles.container}>
       <View style={styles.logoContainer}>
         <Image
-          source={require('@/assets/images/barani-support-logo.png')}
+          source={require('@/assets/images/barani-logo.png')}
           style={styles.logo}
           resizeMode="contain"
         />
