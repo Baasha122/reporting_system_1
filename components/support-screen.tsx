@@ -7,8 +7,8 @@ export default function SupportScreen() {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Image
-          source={{ uri: 'https://www.facultyplus.com/wp-content/uploads/2024/09/logo-4.png' }}
+        <Image 
+          source={require('@/assets/images/barani-logo.png')}
           style={styles.logoImage}
           resizeMode="contain"
         />
