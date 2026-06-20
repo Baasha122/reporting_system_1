@@ -81,3 +81,27 @@ If you need to remove the service from your system:
    npm run service:uninstall
    ```
 This stops the service and unregisters it cleanly from Windows.
+
+---
+
+## Troubleshooting Connection Issues
+
+If you receive the error `Failed to connect to localhost:1433 - Could not connect (sequence)`, SQL Server TCP/IP connections are likely disabled or misconfigured. Follow these steps to resolve it:
+
+### 1. Enable TCP/IP Protocol in SQL Server
+1. Search and open **SQL Server Configuration Manager** from the Windows Start menu.
+2. In the left panel, expand **SQL Server Network Configuration** and click **Protocols for MSSQLSERVER** (or **Protocols for SQLEXPRESS** depending on your installation).
+3. In the right panel, check if **TCP/IP** is enabled. If it is **Disabled**, right-click on it and choose **Enable**.
+4. Right-click **TCP/IP** again and select **Properties**.
+5. Go to the **IP Addresses** tab, scroll down to the bottom section **IPAll**:
+   - If you want to use a specific port, set **TCP Port** to `1433` and clear **TCP Dynamic Ports**.
+   - If you leave **TCP Dynamic Ports** set (common for SQLEXPRESS), check the port listed there and set it in your `.env` file (e.g. `SQL_PORT=xxxxx`).
+6. Click **OK**.
+7. In the left panel of Configuration Manager, click **SQL Server Services**.
+8. Right-click your **SQL Server** instance and click **Restart**.
+
+### 2. Configure Named Instance (e.g., SQLEXPRESS) in `.env`
+If you are using SQL Server Express, you may need to configure the instance name:
+- Add `SQL_INSTANCE_NAME=SQLEXPRESS` to your `.env` file.
+- If necessary, also add `SQL_PORT=1433` (or your dynamic port).
+

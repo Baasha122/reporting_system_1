@@ -31,12 +31,15 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SER
 
 // Configure SQL Server connection
 const sqlConfig = {
-  server: process.env.SQL_SERVER_NAME,
+  server: process.env.SQL_SERVER_NAME || 'localhost',
+  port: process.env.SQL_PORT ? parseInt(process.env.SQL_PORT, 10) : undefined,
   database: process.env.SQL_DATABASE_NAME,
   options: {
+    instanceName: process.env.SQL_INSTANCE_NAME || undefined,
     trustServerCertificate: true // Required for local SQLEXPRESS ssl certs
   }
 };
+
 
 // Check for NTLM (Windows Authentication) config
 if (process.env.SQL_AUTH_TYPE === 'ntlm') {
