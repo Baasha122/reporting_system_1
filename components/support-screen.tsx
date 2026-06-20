@@ -101,12 +101,12 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   baraniLogo: {
-    width: 140,
-    height: 60,
+    width: 210,
+    height: 90,
   },
   collegeLogo: {
-    width: 180,
-    height: 60,
+    width: 270,
+    height: 90,
   },
   title: {
     fontSize: 24,
