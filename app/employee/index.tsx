@@ -10,7 +10,15 @@ import { useAuth } from '@/contexts/auth-context';
 import { CustomPicker } from '@/components/ui/custom-picker';
 
 // In-memory cache to preserve form draft when navigating between screens
-const draftCache: Record<string, { description: string, startTime: string, endTime: string, selectedProject: string }> = {};
+const draftCache: Record<string, { 
+  description: string, 
+  startTime: string, 
+  endTime: string, 
+  selectedProject: string,
+  workOrderNo?: string,
+  customCustomerName?: string,
+  machineName?: string
+}> = {};
 
 export default function EmployeeDashboard() {
   const { user } = useAuth();
@@ -25,14 +33,43 @@ export default function EmployeeDashboard() {
   const [departmentProjects, setDepartmentProjects] = useState<any[]>([]);
   const [selectedProject, setSelectedProject] = useState(draft?.selectedProject || '');
 
+  // Custom fields for Service Year & Commissioning / Maintenance
+  const [workOrderNo, setWorkOrderNo] = useState(draft?.workOrderNo || '');
+  const [customCustomerName, setCustomCustomerName] = useState(draft?.customCustomerName || '');
+  const [machineName, setMachineName] = useState(draft?.machineName || '');
+
+  // Identify selected project characteristics
+  const selectedProjObj = useMemo(() => {
+    return departmentProjects.find(p => p.projectid === selectedProject);
+  }, [selectedProject, departmentProjects]);
+
+  const isServiceYear = useMemo(() => {
+    if (!selectedProjObj) return false;
+    const name = (selectedProjObj.projectname || '').toLowerCase();
+    return name.includes('service year') || name.includes('commissioning') || name.includes('commisioning');
+  }, [selectedProjObj]);
+
+  const isMaintenance = useMemo(() => {
+    if (!selectedProjObj) return false;
+    const name = (selectedProjObj.projectname || '').toLowerCase();
+    return name.includes('maintenance');
+  }, [selectedProjObj]);
+
   // Keep cache updated when draft changes
   useEffect(() => {
     if (user?.id) {
-      draftCache[user.id] = { description, startTime, endTime, selectedProject };
+      draftCache[user.id] = { 
+        description, 
+        startTime, 
+        endTime, 
+        selectedProject, 
+        workOrderNo, 
+        customCustomerName, 
+        machineName 
+      };
     }
-  }, [description, startTime, endTime, selectedProject, user?.id]);
+  }, [description, startTime, endTime, selectedProject, workOrderNo, customCustomerName, machineName, user?.id]);
 
-  
   const [dailyTasks, setDailyTasks] = useState<any[]>([]);
 
   useEffect(() => {
@@ -116,7 +153,7 @@ export default function EmployeeDashboard() {
 
   const handleAddTask = () => {
     if (!user || !user.id || !user.employeeId) {
-      Alert.alert('Error', 'User not identified. Please login again.');
+      alert('User not identified. Please login again.');
       return;
     }
     if (!description.trim()) {
@@ -127,6 +164,25 @@ export default function EmployeeDashboard() {
       alert('Please select a project');
       return;
     }
+
+    // Custom validations (strictly required, no optional fields)
+    if (isServiceYear) {
+      if (!customCustomerName.trim()) {
+        alert('Please enter a Customer Name');
+        return;
+      }
+      if (!workOrderNo.trim()) {
+        alert('Please enter a Work Order Number');
+        return;
+      }
+    }
+    if (isMaintenance) {
+      if (!machineName.trim()) {
+        alert('Please enter a Machine Name');
+        return;
+      }
+    }
+
     if (!duration.trim()) {
       alert('Please enter a valid duration');
       return;
@@ -134,9 +190,15 @@ export default function EmployeeDashboard() {
     
     const selectedProjectObj = departmentProjects.find(p => p.projectid === selectedProject);
     const taskNameToSave = selectedProjectObj ? selectedProjectObj.projectname : 'Task';
-    const descToSave = selectedProjectObj 
-      ? `Project ID: ${selectedProjectObj.projectid}\nCustomer: ${selectedProjectObj.customername}\n\nTask:\n${description}`
-      : description;
+    
+    let descToSave = description;
+    if (isServiceYear) {
+      descToSave = `Project ID: ${selectedProjectObj?.projectid}\nWork Order No: ${workOrderNo.trim()}\nCustomer: ${customCustomerName.trim()}\n\nTask:\n${description}`;
+    } else if (isMaintenance) {
+      descToSave = `Project ID: ${selectedProjectObj?.projectid}\nMachine Name: ${machineName.trim()}\n\nTask:\n${description}`;
+    } else if (selectedProjectObj) {
+      descToSave = `Project ID: ${selectedProjectObj.projectid}\nCustomer: ${selectedProjectObj.customername}\n\nTask:\n${description}`;
+    }
 
     let hoursWorked = 0;
     if (duration.includes(':')) {
@@ -174,10 +236,21 @@ export default function EmployeeDashboard() {
     setEndTime('10:00');
     setDuration('');
     setSelectedProject('');
+    setWorkOrderNo('');
+    setCustomCustomerName('');
+    setMachineName('');
 
     // Clear draft cache
     if (user?.id) {
-      draftCache[user.id] = { description: '', startTime: '09:00', endTime: '10:00', selectedProject: '' };
+      draftCache[user.id] = { 
+        description: '', 
+        startTime: '09:00', 
+        endTime: '10:00', 
+        selectedProject: '',
+        workOrderNo: '',
+        customCustomerName: '',
+        machineName: ''
+      };
     }
   };
 
@@ -241,7 +314,12 @@ export default function EmployeeDashboard() {
               <View style={[styles.inputWrapper, { padding: 0 }]}>
                 <CustomPicker
                   selectedValue={selectedProject}
-                  onValueChange={(val) => setSelectedProject(val)}
+                  onValueChange={(val) => {
+                    setSelectedProject(val);
+                    setWorkOrderNo('');
+                    setCustomCustomerName('');
+                    setMachineName('');
+                  }}
                   style={styles.picker}
                   placeholder="Select Project"
                   items={departmentProjects.map(proj => ({
@@ -253,15 +331,52 @@ export default function EmployeeDashboard() {
             </View>
             <View style={styles.flexHalf}>
               <Text style={styles.label}>customer</Text>
-              <TextInput
-                style={[styles.input, { color: '#6B7280', backgroundColor: '#F3F4F6' }]}
-                placeholder="Auto-filled"
-                placeholderTextColor="#9CA3AF"
-                value={departmentProjects.find(p => p.projectid === selectedProject)?.customername || ''}
-                editable={false}
-              />
+              {isServiceYear ? (
+                <TextInput
+                  style={[styles.input, { backgroundColor: Brand.colors.white }]}
+                  placeholder="Enter Customer Name"
+                  placeholderTextColor="#9CA3AF"
+                  value={customCustomerName}
+                  onChangeText={setCustomCustomerName}
+                />
+              ) : (
+                <TextInput
+                  style={[styles.input, { color: '#6B7280', backgroundColor: '#F3F4F6' }]}
+                  placeholder="Auto-filled"
+                  placeholderTextColor="#9CA3AF"
+                  value={selectedProjObj?.customername || ''}
+                  editable={false}
+                />
+              )}
             </View>
           </View>
+
+          {/* Conditional Input Rows */}
+          {isServiceYear && (
+            <View style={styles.fieldRow}>
+              <Text style={styles.label}>Work Order Number</Text>
+              <TextInput
+                style={[styles.input, { backgroundColor: Brand.colors.white }]}
+                placeholder="Enter Work Order Number"
+                placeholderTextColor="#9CA3AF"
+                value={workOrderNo}
+                onChangeText={setWorkOrderNo}
+              />
+            </View>
+          )}
+
+          {isMaintenance && (
+            <View style={styles.fieldRow}>
+              <Text style={styles.label}>Machine Name</Text>
+              <TextInput
+                style={[styles.input, { backgroundColor: Brand.colors.white }]}
+                placeholder="Enter Machine Name"
+                placeholderTextColor="#9CA3AF"
+                value={machineName}
+                onChangeText={setMachineName}
+              />
+            </View>
+          )}
 
           {/* Middle Row: Task Description */}
           <View style={styles.fieldRow}>

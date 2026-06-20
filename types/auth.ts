@@ -8,7 +8,7 @@ export interface User {
   role: UserRole;
   department: string;
   designation: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status?: 'pending' | 'approved' | 'rejected';
 }
 
 export interface AuthState {

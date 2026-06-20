@@ -77,7 +77,7 @@ export async function fetchReports(filters?: ReportFilters): Promise<DailyReport
         department: dept
       }
     };
-  }) as DailyReport[];
+  }) as unknown as DailyReport[];
 }
 
 export async function fetchReport(id: number): Promise<DailyReport> {

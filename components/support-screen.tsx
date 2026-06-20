@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
   },
   cardSubText: {
     fontSize: 14,
-    color: Brand.colors.textMuted || '#8B949E',
+    color: Brand.colors.textSecondary,
     marginLeft: 36,
     marginTop: 4,
   },
