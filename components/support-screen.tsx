@@ -15,7 +15,7 @@ export default function SupportScreen() {
           />
           <View style={styles.logoDivider} />
           <Image 
-            source={require('@/assets/images/barani-logo.png')}
+            source={require('@/assets/images/barani-support-logo.png')}
             style={styles.companyLogo}
             resizeMode="contain"
           />
