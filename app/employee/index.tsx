@@ -52,7 +52,7 @@ export default function EmployeeDashboard() {
   const isMaintenance = useMemo(() => {
     if (!selectedProjObj) return false;
     const name = (selectedProjObj.projectname || '').toLowerCase();
-    return name.includes('maintenance');
+    return name.includes('maintenance') || name.includes('maintanance');
   }, [selectedProjObj]);
 
   // Keep cache updated when draft changes
