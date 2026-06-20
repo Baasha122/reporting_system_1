@@ -9,13 +9,13 @@ export default function SupportScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.logoContainer}>
           <Image 
-            source={require('@/assets/images/barani-logo.png')}
-            style={styles.baraniLogo}
+            source={{ uri: 'https://www.facultyplus.com/wp-content/uploads/2024/09/logo-4.png' }}
+            style={styles.collegeLogo}
             resizeMode="contain"
           />
           <Image 
-            source={{ uri: 'https://www.facultyplus.com/wp-content/uploads/2024/09/logo-4.png' }}
-            style={styles.collegeLogo}
+            source={require('@/assets/images/barani-logo.png')}
+            style={styles.baraniLogo}
             resizeMode="contain"
           />
         </View>
