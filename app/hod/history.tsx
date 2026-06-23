@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FlatList, StyleSheet, Text, View, ActivityIndicator } from 'react-native';
+import { FlatList, StyleSheet, Text, View, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Brand } from '@/constants/brand';
@@ -10,6 +10,8 @@ export default function ClientHistoryScreen() {
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+  const { width } = useWindowDimensions();
+  const numColumns = width >= 768 ? 2 : 1;
 
   useEffect(() => {
     if (user?.department) {
@@ -46,34 +48,36 @@ export default function ClientHistoryScreen() {
           <ActivityIndicator size="large" color={Brand.colors.primary} />
         </View>
       ) : (
-        <View style={styles.card}>
-          <FlatList
-            data={history}
-            keyExtractor={(item) => item.id.toString()}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>No client records found.</Text>
-            }
-            renderItem={({ item }) => (
-              <View style={styles.itemRow}>
-                <View style={styles.iconContainer}>
-                  <Ionicons name="briefcase" size={24} color={Brand.colors.primary} />
-                </View>
-                <View style={styles.content}>
-                  <View style={styles.contentHeader}>
-                    <Text style={styles.projectName}>{item.projectname}</Text>
-                    <Text style={styles.timeText}>{item.datetime ? new Date(item.datetime).toLocaleDateString() : ''}</Text>
-                  </View>
-                  <Text style={styles.detailsText}>
-                    Project ID: <Text style={{fontWeight: '700'}}>{item.projectid}</Text>
-                  </Text>
-                  <Text style={styles.detailsText}>
-                    Client/Customer: {item.customername}
-                  </Text>
-                </View>
+        <FlatList
+          key={numColumns}
+          numColumns={numColumns}
+          columnWrapperStyle={numColumns > 1 ? styles.rowWrapper : undefined}
+          data={history}
+          keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={styles.list}
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>No client records found.</Text>
+          }
+          renderItem={({ item }) => (
+            <View style={styles.itemCard}>
+              <View style={styles.iconContainer}>
+                <Ionicons name="briefcase" size={24} color={Brand.colors.primary} />
               </View>
-            )}
-          />
-        </View>
+              <View style={styles.content}>
+                <View style={styles.contentHeader}>
+                  <Text style={styles.projectName} numberOfLines={1}>{item.projectname}</Text>
+                  <Text style={styles.timeText}>{item.datetime ? new Date(item.datetime).toLocaleDateString() : ''}</Text>
+                </View>
+                <Text style={styles.detailsText}>
+                  Project ID: <Text style={{fontWeight: '700'}}>{item.projectid}</Text>
+                </Text>
+                <Text style={styles.detailsText}>
+                  Client/Customer: {item.customername}
+                </Text>
+              </View>
+            </View>
+          )}
+        />
       )}
     </View>
   );
@@ -83,23 +87,27 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   title: { fontSize: 24, fontWeight: '700', color: Brand.colors.text, marginBottom: 24 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  card: {
+  list: {
+    paddingBottom: 24,
+    gap: 16,
+  },
+  rowWrapper: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  itemCard: {
+    flex: 1,
+    flexDirection: 'row',
     backgroundColor: '#FFF',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: Brand.colors.border,
-    padding: 24,
-    flex: 1,
-  },
-  itemRow: {
-    flexDirection: 'row',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    padding: 16,
+    alignItems: 'center',
   },
   iconContainer: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: 8,
     backgroundColor: '#F0F5FF',
     justifyContent: 'center',
@@ -114,12 +122,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   projectName: {
     fontSize: 16,
     fontWeight: '600',
     color: Brand.colors.text,
+    flex: 1,
+    paddingRight: 8,
   },
   timeText: {
     fontSize: 12,
