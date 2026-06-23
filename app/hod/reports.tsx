@@ -574,7 +574,7 @@ export default function ReportsScreen() {
           <ActivityIndicator size="large" color={Brand.colors.primary} />
         </View>
       ) : filter === 'reports' ? (
-        <ScrollView contentContainerStyle={styles.reportListContainer} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={styles.reportListContainer}>
           {reportType === 'employees' && selectedEmployeeId && (
             <View style={styles.employeeDetailsSection}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -668,7 +668,6 @@ export default function ReportsScreen() {
           data={groupedReports}
           keyExtractor={(item) => item.employee.id}
           contentContainerStyle={styles.gridContainer}
-          showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <Text style={styles.emptyText}>No reports found.</Text>
           }
@@ -802,7 +801,7 @@ export default function ReportsScreen() {
                       <Text style={[styles.col, { flex: 0.8, textAlign: 'center' }]}>Hrs</Text>
                       <Text style={[styles.col, { flex: 1, textAlign: 'right' }]}>Status</Text>
                     </View>
-                    <ScrollView showsVerticalScrollIndicator={false}>
+                    <ScrollView>
                       {paginatedTasks.map((group, index) => (
                         <View key={group.project} style={[styles.tableRow, { paddingVertical: 0, paddingHorizontal: 0, alignItems: 'stretch' }]}>
                           <View style={{ flex: 2, flexDirection: 'row', padding: 16, borderRightWidth: 1, borderRightColor: '#F3F4F6' }}>
