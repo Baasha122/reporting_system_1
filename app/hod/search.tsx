@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState, useEffect } from 'react';
-import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { Brand } from '@/constants/brand';
@@ -11,6 +11,8 @@ import { User } from '@/types/auth';
 export default function EmployeeSearch() {
   const { user } = useAuth();
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const numColumns = width >= 1200 ? 3 : (width >= 768 ? 2 : 1);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
@@ -77,6 +79,9 @@ export default function EmployeeSearch() {
       </View>
 
       <FlatList
+        key={numColumns}
+        numColumns={numColumns}
+        columnWrapperStyle={numColumns > 1 ? styles.rowWrapper : undefined}
         data={results}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
@@ -156,9 +161,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   list: {
+    paddingBottom: 24,
+    gap: 16,
+  },
+  rowWrapper: {
+    flexDirection: 'row',
     gap: 16,
   },
   card: {
+    flex: 1,
     backgroundColor: '#FFF',
     borderRadius: 12,
     padding: 20,
