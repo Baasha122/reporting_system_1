@@ -298,35 +298,39 @@ export default function ProjectsScreen() {
               <ActivityIndicator size="large" color={Brand.colors.primary} style={{ marginTop: 40 }} />
             ) : (
               <View style={styles.modalTableCard}>
-                <View style={styles.modalTableHeader}>
-                  <Text style={[styles.modalCol, { flex: 0.5 }]}>S.No</Text>
-                  <Text style={[styles.modalCol, { flex: 1.5 }]}>Employee</Text>
-                  <Text style={[styles.modalCol, { flex: 2 }]}>Task Description</Text>
-                  <Text style={[styles.modalCol, { flex: 1.5 }]}>Date</Text>
-                  <Text style={[styles.modalCol, { flex: 0.8, textAlign: 'center' }]}>Hrs</Text>
-                  <Text style={[styles.modalCol, { flex: 1, textAlign: 'right' }]}>Status</Text>
-                </View>
-                <ScrollView showsVerticalScrollIndicator={false}>
-                  {selectedProjectReports?.reports.length === 0 ? (
-                    <Text style={{ textAlign: 'center', padding: 20, color: Brand.colors.textSecondary }}>No tasks logged for this project yet.</Text>
-                  ) : (
-                    selectedProjectReports?.reports.map((report, index) => (
-                      <View key={report.id} style={styles.modalTableRow}>
-                        <Text style={[styles.modalCell, { flex: 0.5 }]}>{index + 1}</Text>
-                        <Text style={[styles.modalCell, { flex: 1.5 }]} numberOfLines={2}>{report.employee?.name || 'Unknown'}</Text>
-                        <Text style={[styles.modalCell, { flex: 2 }]} numberOfLines={3}>{report.work_description}</Text>
-                        <Text style={[styles.modalCell, { flex: 1.5 }]}>{report.report_date}</Text>
-                        <Text style={[styles.modalCell, { flex: 0.8, textAlign: 'center' }]}>{report.hours_worked}</Text>
-                        <View style={{ flex: 1, alignItems: 'flex-end' }}>
-                          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(report.status) + '20' }]}>
-                            <Text style={[styles.statusBadgeText, { color: getStatusColor(report.status) }]}>
-                              {report.status.toUpperCase()}
-                            </Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={true}>
+                  <View style={{ minWidth: 650 }}>
+                    <View style={styles.modalTableHeader}>
+                      <Text style={[styles.modalCol, { flex: 0.5 }]}>S.No</Text>
+                      <Text style={[styles.modalCol, { flex: 1.5 }]}>Employee</Text>
+                      <Text style={[styles.modalCol, { flex: 2.5 }]}>Task Description</Text>
+                      <Text style={[styles.modalCol, { flex: 1.5 }]}>Date</Text>
+                      <Text style={[styles.modalCol, { flex: 0.8, textAlign: 'center' }]}>Hrs</Text>
+                      <Text style={[styles.modalCol, { flex: 1.2, textAlign: 'right' }]}>Status</Text>
+                    </View>
+                    <ScrollView showsVerticalScrollIndicator={false}>
+                      {selectedProjectReports?.reports.length === 0 ? (
+                        <Text style={{ textAlign: 'center', padding: 20, color: Brand.colors.textSecondary }}>No tasks logged for this project yet.</Text>
+                      ) : (
+                        selectedProjectReports?.reports.map((report, index) => (
+                          <View key={report.id} style={styles.modalTableRow}>
+                            <Text style={[styles.modalCell, { flex: 0.5 }]}>{index + 1}</Text>
+                            <Text style={[styles.modalCell, { flex: 1.5 }]} numberOfLines={2}>{report.employee?.name || 'Unknown'}</Text>
+                            <Text style={[styles.modalCell, { flex: 2.5 }]} numberOfLines={3}>{report.work_description}</Text>
+                            <Text style={[styles.modalCell, { flex: 1.5 }]}>{report.report_date}</Text>
+                            <Text style={[styles.modalCell, { flex: 0.8, textAlign: 'center' }]}>{report.hours_worked}</Text>
+                            <View style={{ flex: 1.2, alignItems: 'flex-end' }}>
+                              <View style={[styles.statusBadge, { backgroundColor: getStatusColor(report.status) + '20' }]}>
+                                <Text style={[styles.statusBadgeText, { color: getStatusColor(report.status) }]}>
+                                  {report.status.toUpperCase()}
+                                </Text>
+                              </View>
+                            </View>
                           </View>
-                        </View>
-                      </View>
-                    ))
-                  )}
+                        ))
+                      )}
+                    </ScrollView>
+                  </View>
                 </ScrollView>
               </View>
             )}

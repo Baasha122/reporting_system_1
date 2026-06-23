@@ -380,8 +380,8 @@ export default function EmployeeDashboard() {
       </View>
 
       {/* Third Row: Times & Add Button */}
-      <View style={styles.fieldRowHorizontal}>
-        <View style={styles.flexThird}>
+      <View style={isDesktop ? styles.fieldRowHorizontal : styles.mobileTimesFieldsRow}>
+        <View style={isDesktop ? styles.flexThird : styles.mobileTimeField}>
           <Text style={styles.label}>start time</Text>
           <View style={[styles.inputWrapper, { padding: 0 }]}>
             <CustomPicker
@@ -393,7 +393,7 @@ export default function EmployeeDashboard() {
             />
           </View>
         </View>
-        <View style={styles.flexThird}>
+        <View style={isDesktop ? styles.flexThird : styles.mobileTimeField}>
           <Text style={styles.label}>End Time</Text>
           <View style={[styles.inputWrapper, { padding: 0 }]}>
             <CustomPicker
@@ -405,7 +405,7 @@ export default function EmployeeDashboard() {
             />
           </View>
         </View>
-        <View style={styles.flexThird}>
+        <View style={isDesktop ? styles.flexThird : styles.mobileTimeField}>
           <Text style={styles.label}>Duration</Text>
           <TextInput
             style={[styles.input, styles.durationInput]}
@@ -416,12 +416,22 @@ export default function EmployeeDashboard() {
           />
         </View>
         
-        <View style={styles.addButtonWrapper}>
-          <TouchableOpacity style={styles.addButton} onPress={handleAddTask}>
-            <Text style={styles.addButtonText}>add</Text>
+        {isDesktop && (
+          <View style={styles.addButtonWrapper}>
+            <TouchableOpacity style={styles.addButton} onPress={handleAddTask}>
+              <Text style={styles.addButtonText}>add</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+
+      {!isDesktop && (
+        <View style={styles.mobileAddBtnContainer}>
+          <TouchableOpacity style={styles.mobileAddBtn} onPress={handleAddTask}>
+            <Text style={styles.mobileAddBtnText}>Add Task</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      )}
     </>
   );
 
@@ -749,6 +759,38 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: '#fff',
     fontSize: 14,
+    fontWeight: '700',
+  },
+  mobileTimesFieldsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 12,
+    width: '100%',
+  },
+  mobileTimeField: {
+    flex: 1,
+    gap: 8,
+  },
+  mobileAddBtnContainer: {
+    marginTop: 16,
+    width: '100%',
+  },
+  mobileAddBtn: {
+    backgroundColor: '#0056FF',
+    borderRadius: 8,
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  mobileAddBtnText: {
+    color: '#FFF',
+    fontSize: 15,
     fontWeight: '700',
   },
 });
