@@ -451,35 +451,35 @@ export default function ReportsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View>
+        <View style={{ marginRight: 16 }}>
           <Text style={styles.title}>Employee Reports</Text>
           <Text style={styles.subtitle}>Review reports for {user?.department || 'Unknown Department'}</Text>
         </View>
-        <Pressable
-          style={({ hovered, pressed }) => [
-            styles.exportBtn,
-            hovered && styles.exportBtnHovered,
-            pressed && { opacity: 0.7 }
-          ] as any}
-          onPress={handleExport}
-        >
-          <Ionicons name="download-outline" size={16} color="#FFF" />
-          <Text style={styles.exportBtnText}>
-            Export {selectedEmployees.size > 0 ? `(${selectedEmployees.size} Emp)` : 'All'}
-          </Text>
-        </Pressable>
+        <View style={styles.headerActions}>
+          <View style={styles.filtersInline}>
+            {renderFilter('all', 'All')}
+            {renderFilter('reports', 'Reports')}
+            {renderFilter('weekly', 'Weekly')}
+            {renderFilter('monthly', 'Monthly')}
+          </View>
+          <Pressable
+            style={({ hovered, pressed }) => [
+              styles.exportBtn,
+              hovered && styles.exportBtnHovered,
+              pressed && { opacity: 0.7 }
+            ] as any}
+            onPress={handleExport}
+          >
+            <Ionicons name="download-outline" size={16} color="#FFF" />
+            <Text style={styles.exportBtnText}>
+              Export {selectedEmployees.size > 0 ? `(${selectedEmployees.size} Emp)` : 'All'}
+            </Text>
+          </Pressable>
+        </View>
       </View>
 
-      <View style={styles.filtersContainer}>
-        {/* Wireframe format: Filters row aligned below the banner */}
-        <View style={styles.filters}>
-          {renderFilter('all', 'All')}
-          {renderFilter('reports', 'Reports')}
-          {renderFilter('weekly', 'Weekly')}
-          {renderFilter('monthly', 'Monthly')}
-        </View>
-        
-        {filter === 'reports' && (
+      {filter === 'reports' && (
+        <View style={styles.filtersContainer}>
           <View style={styles.customDateContainer}>
             {/* Wireframe format: Two large dropdowns side by side, then a Search button */}
             <View style={styles.filterRow}>
@@ -566,8 +566,8 @@ export default function ReportsScreen() {
               </View>
             )}
           </View>
-        )}
-      </View>
+        </View>
+      )}
 
       {loading ? (
         <View style={styles.center}>
@@ -891,6 +891,17 @@ const styles = StyleSheet.create({
     color: Brand.colors.textSecondary,
     marginTop: 4,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    flexWrap: 'wrap',
+  },
+  filtersInline: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
   exportBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -908,8 +919,8 @@ const styles = StyleSheet.create({
   filtersContainer: { gap: 24 },
   filters: { flexDirection: 'row', gap: 16, flexWrap: 'wrap' },
   filterChip: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderRadius: 8,
     backgroundColor: '#FFF',
     borderWidth: 1,
