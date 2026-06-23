@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View, ScrollView } from 'react-native';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View, ScrollView, useWindowDimensions } from 'react-native';
 
 import { useLogout } from '@/components/auth/auth-guard';
 import { Brand } from '@/constants/brand';
@@ -14,6 +14,8 @@ export default function SettingsScreen() {
   const [resettingPassword, setResettingPassword] = useState(false);
   const [resetEmpId, setResetEmpId] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= 1024;
   const [form, setForm] = useState({
     name: user?.name || '',
     department: user?.department || '',
@@ -71,103 +73,111 @@ export default function SettingsScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+    <ScrollView style={[styles.container, { maxWidth: isDesktop ? 1000 : 600 }]} contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
       <Text style={styles.title}>Settings</Text>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Profile Information</Text>
-        
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Full Name</Text>
-          <TextInput
-            style={styles.input}
-            value={form.name}
-            onChangeText={(text) => setForm({ ...form, name: text })}
-          />
+      <View style={isDesktop ? styles.columnsContainer : styles.verticalContainer}>
+        {/* Left Column: Profile info */}
+        <View style={isDesktop ? styles.leftColumn : undefined}>
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Profile Information</Text>
+            
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Full Name</Text>
+              <TextInput
+                style={styles.input}
+                value={form.name}
+                onChangeText={(text) => setForm({ ...form, name: text })}
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Department</Text>
+              <TextInput
+                style={styles.input}
+                value={form.department}
+                onChangeText={(text) => setForm({ ...form, department: text })}
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Designation</Text>
+              <TextInput
+                style={styles.input}
+                value={form.designation}
+                onChangeText={(text) => setForm({ ...form, designation: text })}
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Email Address (Read Only)</Text>
+              <TextInput
+                style={[styles.input, styles.inputDisabled]}
+                value={user?.email}
+                editable={false}
+              />
+            </View>
+
+            <TouchableOpacity 
+              style={[styles.saveBtn, saving && styles.saveBtnDisabled]} 
+              onPress={handleSave}
+              disabled={saving}
+            >
+              <Text style={styles.saveBtnText}>{saving ? 'Saving...' : 'Save Changes'}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Department</Text>
-          <TextInput
-            style={styles.input}
-            value={form.department}
-            onChangeText={(text) => setForm({ ...form, department: text })}
-          />
+        {/* Right Column: Password reset and danger zone */}
+        <View style={isDesktop ? styles.rightColumn : undefined}>
+          <View style={[styles.card, { marginTop: 0 }]}>
+            <Text style={styles.sectionTitle}>Reset Password</Text>
+            <Text style={styles.descriptionText}>
+              To change your password, please verify your Employee ID, then enter a new password.
+            </Text>
+            
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Employee ID</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your Employee ID"
+                placeholderTextColor="#9CA3AF"
+                value={resetEmpId}
+                onChangeText={setResetEmpId}
+                autoCapitalize="characters"
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>New Password</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter new password"
+                placeholderTextColor="#9CA3AF"
+                value={newPassword}
+                onChangeText={setNewPassword}
+                secureTextEntry
+              />
+            </View>
+
+            <TouchableOpacity 
+              style={[styles.resetBtn, (resettingPassword || !resetEmpId.trim() || !newPassword.trim()) && styles.saveBtnDisabled]} 
+              onPress={handleResetPassword}
+              disabled={resettingPassword || !resetEmpId.trim() || !newPassword.trim()}
+            >
+              <Ionicons name="lock-closed-outline" size={20} color="#FFF" style={{ marginRight: 8 }} />
+              <Text style={styles.saveBtnText}>{resettingPassword ? 'Updating...' : 'Update Password'}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.dangerZone}>
+            <Text style={styles.sectionTitle}>Account Actions</Text>
+            <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+              <Ionicons name="log-out-outline" size={20} color="#DC2626" />
+              <Text style={styles.logoutBtnText}>Sign Out of All Devices</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Designation</Text>
-          <TextInput
-            style={styles.input}
-            value={form.designation}
-            onChangeText={(text) => setForm({ ...form, designation: text })}
-          />
-        </View>
-
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Email Address (Read Only)</Text>
-          <TextInput
-            style={[styles.input, styles.inputDisabled]}
-            value={user?.email}
-            editable={false}
-          />
-        </View>
-
-        <TouchableOpacity 
-          style={[styles.saveBtn, saving && styles.saveBtnDisabled]} 
-          onPress={handleSave}
-          disabled={saving}
-        >
-          <Text style={styles.saveBtnText}>{saving ? 'Saving...' : 'Save Changes'}</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={[styles.card, { marginTop: 0 }]}>
-        <Text style={styles.sectionTitle}>Reset Password</Text>
-        <Text style={styles.descriptionText}>
-          To change your password, please verify your Employee ID, then enter a new password.
-        </Text>
-        
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>Employee ID</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter your Employee ID"
-            placeholderTextColor="#9CA3AF"
-            value={resetEmpId}
-            onChangeText={setResetEmpId}
-            autoCapitalize="characters"
-          />
-        </View>
-
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>New Password</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter new password"
-            placeholderTextColor="#9CA3AF"
-            value={newPassword}
-            onChangeText={setNewPassword}
-            secureTextEntry
-          />
-        </View>
-
-        <TouchableOpacity 
-          style={[styles.resetBtn, (resettingPassword || !resetEmpId.trim() || !newPassword.trim()) && styles.saveBtnDisabled]} 
-          onPress={handleResetPassword}
-          disabled={resettingPassword || !resetEmpId.trim() || !newPassword.trim()}
-        >
-          <Ionicons name="lock-closed-outline" size={20} color="#FFF" style={{ marginRight: 8 }} />
-          <Text style={styles.saveBtnText}>{resettingPassword ? 'Updating...' : 'Update Password'}</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.dangerZone}>
-        <Text style={styles.sectionTitle}>Account Actions</Text>
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={20} color="#DC2626" />
-          <Text style={styles.logoutBtnText}>Sign Out of All Devices</Text>
-        </TouchableOpacity>
       </View>
     </ScrollView>
   );
@@ -176,7 +186,21 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    maxWidth: 600,
+  },
+  columnsContainer: {
+    flexDirection: 'row',
+    gap: 24,
+    alignItems: 'flex-start',
+  },
+  verticalContainer: {
+    flexDirection: 'column',
+  },
+  leftColumn: {
+    flex: 1.2,
+  },
+  rightColumn: {
+    flex: 1,
+    gap: 24,
   },
   title: {
     fontSize: 24,
