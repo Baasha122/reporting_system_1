@@ -12,30 +12,108 @@ export default function MonthlyScreen() {
     approvedReports: 0,
     uniqueEmployees: 0,
   });
+  const [breakdown, setBreakdown] = useState<{ department: string; hours: number; reports: number }[]>([]);
+  const [maxHoursVal, setMaxHoursVal] = useState(0);
 
   useEffect(() => {
     loadMonthlyData();
   }, []);
 
+  const parseHours = (durationStr: any): number => {
+    if (!durationStr) return 0;
+    if (typeof durationStr === 'number') return durationStr;
+    const str = String(durationStr).trim();
+    if (str.includes(':')) {
+      const parts = str.split(':');
+      const hrs = parseInt(parts[0], 10) || 0;
+      const mins = parseInt(parts[1], 10) || 0;
+      return hrs + (mins / 60);
+    }
+    const num = parseFloat(str);
+    return isNaN(num) ? 0 : num;
+  };
+
   const loadMonthlyData = async () => {
     try {
       setLoading(true);
-      // Fetching all reports for the current month.
-      // In a real app, use date filters.
-      const { data, error } = await supabase
+
+      // Fetch profiles to get department mapping
+      const { data: profiles, error: profileErr } = await supabase
+        .from('profiles')
+        .select('id, department');
+      
+      if (profileErr) throw profileErr;
+
+      // Fetch daily_reports (live drafts and recent reports)
+      const { data: reports, error: reportsErr } = await supabase
         .from('daily_reports')
         .select('hours_worked, status, employee_id');
 
-      if (error) throw error;
+      if (reportsErr) throw reportsErr;
 
-      if (data) {
-        const totalHours = data.reduce((acc, curr) => acc + Number(curr.hours_worked || 0), 0);
-        const totalReports = data.length;
-        const approvedReports = data.filter(d => d.status === 'approved').length;
-        const uniqueEmployees = new Set(data.map(d => d.employee_id)).size;
+      // Fetch project rows (synchronized reports)
+      const { data: projects, error: projectsErr } = await supabase
+        .from('project')
+        .select('Department, duration');
+
+      if (projectsErr) throw projectsErr;
+
+      // Calculate Card stats based on daily_reports
+      if (reports) {
+        const totalHours = reports.reduce((acc, curr) => acc + Number(curr.hours_worked || 0), 0);
+        const totalReports = reports.length;
+        const approvedReports = reports.filter(d => d.status === 'approved').length;
+        const uniqueEmployees = new Set(reports.map(d => d.employee_id)).size;
 
         setStats({ totalHours, totalReports, approvedReports, uniqueEmployees });
       }
+
+      // Group and calculate Department Breakdown
+      const deptMap: Record<string, { hours: number, count: number }> = {};
+      let maxHours = 0;
+
+      // Group daily_reports
+      if (reports && profiles) {
+        reports.forEach(r => {
+          const profile = profiles.find(p => p.id === r.employee_id);
+          const dept = (profile?.department || 'Other').trim();
+          const hrs = Number(r.hours_worked || 0);
+          
+          if (!deptMap[dept]) {
+            deptMap[dept] = { hours: 0, count: 0 };
+          }
+          deptMap[dept].hours += hrs;
+          deptMap[dept].count += 1;
+        });
+      }
+
+      // Group project rows
+      if (projects) {
+        projects.forEach(p => {
+          const dept = (p.Department || 'Other').trim();
+          const hrs = parseHours(p.duration);
+          
+          if (!deptMap[dept]) {
+            deptMap[dept] = { hours: 0, count: 0 };
+          }
+          deptMap[dept].hours += hrs;
+          deptMap[dept].count += 1;
+        });
+      }
+
+      // Build array
+      const breakdownData = Object.entries(deptMap).map(([name, val]) => {
+        if (val.hours > maxHours) maxHours = val.hours;
+        return {
+          department: name,
+          hours: parseFloat(val.hours.toFixed(1)),
+          reports: val.count,
+        };
+      }).sort((a, b) => b.hours - a.hours);
+
+      setBreakdown(breakdownData);
+      setMaxHoursVal(maxHours);
+
     } catch (error) {
       console.error('Error loading monthly data:', error);
     } finally {
@@ -80,7 +158,21 @@ export default function MonthlyScreen() {
 
       <View style={styles.chartCard}>
         <Text style={styles.chartTitle}>Department Breakdown</Text>
-        <Text style={styles.emptyText}>Detailed breakdown will appear here once sufficient data is collected.</Text>
+        {breakdown.length === 0 ? (
+          <Text style={styles.emptyText}>Detailed breakdown will appear here once sufficient data is collected.</Text>
+        ) : (
+          breakdown.map((item, index) => (
+            <View key={item.department || index} style={styles.breakdownRow}>
+              <View style={styles.breakdownInfo}>
+                <Text style={styles.breakdownDeptName}>{item.department}</Text>
+                <Text style={styles.breakdownMeta}>{item.hours} hrs · {item.reports} reports</Text>
+              </View>
+              <View style={styles.barContainer}>
+                <View style={[styles.barFill, { width: `${maxHoursVal > 0 ? (item.hours / maxHoursVal) * 100 : 0}%` }]} />
+              </View>
+            </View>
+          ))
+        )}
       </View>
     </ScrollView>
   );
@@ -92,22 +184,20 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   grid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 20,
+    gap: 16,
     marginBottom: 32,
   },
   card: {
     backgroundColor: '#FFF',
-    padding: 24,
+    padding: 16,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: Brand.colors.border,
-    minWidth: '45%',
     flex: 1,
   },
-  cardTitle: { fontSize: 14, fontWeight: '600', color: Brand.colors.textSecondary, marginBottom: 12 },
-  cardValue: { fontSize: 32, fontWeight: '700', color: Brand.colors.primary, marginBottom: 4 },
-  cardSub: { fontSize: 12, color: Brand.colors.textSecondary },
+  cardTitle: { fontSize: 13, fontWeight: '600', color: Brand.colors.textSecondary, marginBottom: 8 },
+  cardValue: { fontSize: 24, fontWeight: '700', color: Brand.colors.primary, marginBottom: 4 },
+  cardSub: { fontSize: 11, color: Brand.colors.textSecondary },
   chartCard: {
     backgroundColor: '#FFF',
     padding: 24,
@@ -116,6 +206,35 @@ const styles = StyleSheet.create({
     borderColor: Brand.colors.border,
     minHeight: 300,
   },
-  chartTitle: { fontSize: 16, fontWeight: '600', color: Brand.colors.text, marginBottom: 16 },
+  chartTitle: { fontSize: 16, fontWeight: '600', color: Brand.colors.text, marginBottom: 20 },
   emptyText: { color: Brand.colors.textSecondary, textAlign: 'center', marginTop: 100 },
+  breakdownRow: {
+    marginBottom: 20,
+  },
+  breakdownInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  breakdownDeptName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Brand.colors.text,
+  },
+  breakdownMeta: {
+    fontSize: 13,
+    color: Brand.colors.textSecondary,
+  },
+  barContainer: {
+    height: 8,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  barFill: {
+    height: '100%',
+    backgroundColor: Brand.colors.primary,
+    borderRadius: 4,
+  },
 });
