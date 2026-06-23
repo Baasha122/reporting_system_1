@@ -449,122 +449,122 @@ export default function ReportsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        {/* Wireframe format: Large centered banner for title */}
-        <View style={styles.bannerContainer}>
-          <Text style={styles.bannerTitle}>Employee Reports ({user?.department || 'Unknown Department'})</Text>
-          <Pressable
-            style={({ hovered, pressed }) => [
-              styles.exportBtnBanner,
-              hovered && styles.exportBtnBannerHovered,
-              pressed && { opacity: 0.7 }
-            ] as any}
-            onPress={handleExport}
-          >
-            <Ionicons name="download-outline" size={16} color="#FFF" />
-            <Text style={styles.exportBtnText}>
-              Export {selectedEmployees.size > 0 ? `(${selectedEmployees.size} Emp)` : 'All'}
-            </Text>
-          </Pressable>
+        <View>
+          <Text style={styles.title}>Employee Reports</Text>
+          <Text style={styles.subtitle}>Review reports for {user?.department || 'Unknown Department'}</Text>
         </View>
+        <Pressable
+          style={({ hovered, pressed }) => [
+            styles.exportBtn,
+            hovered && styles.exportBtnHovered,
+            pressed && { opacity: 0.7 }
+          ] as any}
+          onPress={handleExport}
+        >
+          <Ionicons name="download-outline" size={16} color="#FFF" />
+          <Text style={styles.exportBtnText}>
+            Export {selectedEmployees.size > 0 ? `(${selectedEmployees.size} Emp)` : 'All'}
+          </Text>
+        </Pressable>
+      </View>
 
-        <View style={styles.filtersContainer}>
-          {/* Wireframe format: Filters row aligned below the banner */}
-          <View style={styles.filters}>
-            {renderFilter('all', 'All')}
-            {renderFilter('reports', 'Reports')}
-            {renderFilter('weekly', 'Weekly')}
-            {renderFilter('monthly', 'Monthly')}
-          </View>
-          
-          {filter === 'reports' && (
-            <View style={styles.customDateContainer}>
-              {/* Wireframe format: Two large dropdowns side by side, then a Search button */}
-              <View style={styles.filterRow}>
-                <View style={styles.pickerWrapperLarge}>
-                  <Picker
-                    selectedValue={reportType}
-                    onValueChange={(itemValue) => {
-                      setReportType(itemValue as any);
-                      setSelectedProjectId('');
-                      setSelectedEmployeeId('');
-                    }}
-                    style={styles.pickerLarge}
-                  >
-                    <Picker.Item label="Select Type" value="" />
-                    <Picker.Item label="Projects" value="projects" />
-                    <Picker.Item label="Employees" value="employees" />
-                  </Picker>
-                </View>
-
-                <View style={styles.pickerWrapperLarge}>
-                  {reportType === 'projects' ? (
-                    <Picker
-                      selectedValue={selectedProjectId}
-                      onValueChange={(itemValue) => setSelectedProjectId(itemValue)}
-                      style={styles.pickerLarge}
-                    >
-                      <Picker.Item label="Select Project" value="" />
-                      {departmentProjects.map(p => (
-                        <Picker.Item key={p.projectid} label={p.projectname} value={p.projectname} />
-                      ))}
-                    </Picker>
-                  ) : reportType === 'employees' ? (
-                    <Picker
-                      selectedValue={selectedEmployeeId}
-                      onValueChange={(itemValue) => setSelectedEmployeeId(itemValue)}
-                      style={styles.pickerLarge}
-                    >
-                      <Picker.Item label="Select Employee" value="" />
-                      {departmentEmployees.map(emp => (
-                        <Picker.Item key={emp.id} label={`${emp.name} (${emp.employee_id})`} value={emp.id} />
-                      ))}
-                    </Picker>
-                  ) : (
-                    <Picker enabled={false} selectedValue="" onValueChange={() => {}} style={styles.pickerLarge}>
-                      <Picker.Item label="Select Sub-Type" value="" />
-                    </Picker>
-                  )}
-                </View>
-
-                <Pressable
-                  style={({ hovered, pressed }) => [
-                    styles.applyBtnLarge,
-                    hovered && styles.applyBtnLargeHovered,
-                    pressed && { opacity: 0.7 }
-                  ] as any}
-                  onPress={() => { }}
+      <View style={styles.filtersContainer}>
+        {/* Wireframe format: Filters row aligned below the banner */}
+        <View style={styles.filters}>
+          {renderFilter('all', 'All')}
+          {renderFilter('reports', 'Reports')}
+          {renderFilter('weekly', 'Weekly')}
+          {renderFilter('monthly', 'Monthly')}
+        </View>
+        
+        {filter === 'reports' && (
+          <View style={styles.customDateContainer}>
+            {/* Wireframe format: Two large dropdowns side by side, then a Search button */}
+            <View style={styles.filterRow}>
+              <View style={styles.pickerWrapperLarge}>
+                <Picker
+                  selectedValue={reportType}
+                  onValueChange={(itemValue) => {
+                    setReportType(itemValue as any);
+                    setSelectedProjectId('');
+                    setSelectedEmployeeId('');
+                  }}
+                  style={styles.pickerLarge}
                 >
-                  <Text style={styles.applyBtnTextLarge}>Search</Text>
-                </Pressable>
+                  <Picker.Item label="Select Type" value="" />
+                  <Picker.Item label="Projects" value="projects" />
+                  <Picker.Item label="Employees" value="employees" />
+                </Picker>
               </View>
 
-              {reportType === 'employees' && (
-                <View style={styles.filterRow}>
-                  <View style={styles.dateInputWrapper}>
-                    <Ionicons name="calendar-outline" size={16} color={Brand.colors.textSecondary} />
-                    <TextInput
-                      style={styles.dateInput}
-                      placeholder="Start Date (YYYY-MM-DD)"
-                      value={customStartDate}
-                      onChangeText={setCustomStartDate}
-                      placeholderTextColor={Brand.colors.textSecondary}
-                    />
-                  </View>
-                  <View style={styles.dateInputWrapper}>
-                    <Ionicons name="calendar-outline" size={16} color={Brand.colors.textSecondary} />
-                    <TextInput
-                      style={styles.dateInput}
-                      placeholder="End Date (YYYY-MM-DD)"
-                      value={customEndDate}
-                      onChangeText={setCustomEndDate}
-                      placeholderTextColor={Brand.colors.textSecondary}
-                    />
-                  </View>
-                </View>
-              )}
+              <View style={styles.pickerWrapperLarge}>
+                {reportType === 'projects' ? (
+                  <Picker
+                    selectedValue={selectedProjectId}
+                    onValueChange={(itemValue) => setSelectedProjectId(itemValue)}
+                    style={styles.pickerLarge}
+                  >
+                    <Picker.Item label="Select Project" value="" />
+                    {departmentProjects.map(p => (
+                      <Picker.Item key={p.projectid} label={p.projectname} value={p.projectname} />
+                    ))}
+                  </Picker>
+                ) : reportType === 'employees' ? (
+                  <Picker
+                    selectedValue={selectedEmployeeId}
+                    onValueChange={(itemValue) => setSelectedEmployeeId(itemValue)}
+                    style={styles.pickerLarge}
+                  >
+                    <Picker.Item label="Select Employee" value="" />
+                    {departmentEmployees.map(emp => (
+                      <Picker.Item key={emp.id} label={`${emp.name} (${emp.employee_id})`} value={emp.id} />
+                    ))}
+                  </Picker>
+                ) : (
+                  <Picker enabled={false} selectedValue="" onValueChange={() => {}} style={styles.pickerLarge}>
+                    <Picker.Item label="Select Sub-Type" value="" />
+                  </Picker>
+                )}
+              </View>
+
+              <Pressable
+                style={({ hovered, pressed }) => [
+                  styles.applyBtnLarge,
+                  hovered && styles.applyBtnLargeHovered,
+                  pressed && { opacity: 0.7 }
+                ] as any}
+                onPress={() => { }}
+              >
+                <Text style={styles.applyBtnTextLarge}>Search</Text>
+              </Pressable>
             </View>
-          )}
-        </View>
+
+            {reportType === 'employees' && (
+              <View style={styles.filterRow}>
+                <View style={styles.dateInputWrapper}>
+                  <Ionicons name="calendar-outline" size={16} color={Brand.colors.textSecondary} />
+                  <TextInput
+                    style={styles.dateInput}
+                    placeholder="Start Date (YYYY-MM-DD)"
+                    value={customStartDate}
+                    onChangeText={setCustomStartDate}
+                    placeholderTextColor={Brand.colors.textSecondary}
+                  />
+                </View>
+                <View style={styles.dateInputWrapper}>
+                  <Ionicons name="calendar-outline" size={16} color={Brand.colors.textSecondary} />
+                  <TextInput
+                    style={styles.dateInput}
+                    placeholder="End Date (YYYY-MM-DD)"
+                    value={customEndDate}
+                    onChangeText={setCustomEndDate}
+                    placeholderTextColor={Brand.colors.textSecondary}
+                  />
+                </View>
+              </View>
+            )}
+          </View>
+        )}
       </View>
 
       {loading ? (
@@ -869,43 +869,23 @@ export default function ReportsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 24, backgroundColor: '#FAFAFA' },
-  header: { marginBottom: 32 },
-  bannerContainer: {
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: Brand.colors.border,
-    borderRadius: 12,
-    paddingVertical: 24,
-    paddingHorizontal: 24,
-    flexDirection: 'column',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 16,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  bannerTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: Brand.colors.text,
-    textAlign: 'center',
-  },
-  exportBtnBanner: {
+  header: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: Brand.colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    gap: 8,
+    marginBottom: 24,
+    flexWrap: 'wrap',
+    gap: 16,
   },
-  exportBtnBannerHovered: {
-    backgroundColor: Brand.colors.primaryDark || '#0041CC',
-    opacity: 0.9,
+  title: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: Brand.colors.text,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: Brand.colors.textSecondary,
+    marginTop: 4,
   },
   exportBtn: {
     flexDirection: 'row',
