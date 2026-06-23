@@ -5,6 +5,7 @@ import { Pressable, Image, StyleSheet, Text, View } from 'react-native';
 
 import { Brand } from '@/constants/brand';
 import { useAuth } from '@/contexts/auth-context';
+import { useSidebar } from '@/contexts/sidebar-context';
 
 const EMPLOYEE_NAV_ITEMS = [
   { name: 'Home', path: '/employee', icon: 'home' as const },
@@ -28,6 +29,7 @@ const HOD_NAV_ITEMS = [
 export function Sidebar({ isMobile }: { isMobile?: boolean }) {
   const pathname = usePathname();
   const { user } = useAuth();
+  const { isCollapsed, toggleSidebar } = useSidebar();
   
   const navItems = user?.role === 'hod' ? HOD_NAV_ITEMS : EMPLOYEE_NAV_ITEMS;
 
@@ -65,30 +67,50 @@ export function Sidebar({ isMobile }: { isMobile?: boolean }) {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.logoContainer}>
-        <Image
-          source={require('@/assets/images/barani-logo.png')}
-          style={styles.logo}
-          resizeMode="contain"
-        />
+    <View style={StyleSheet.flatten([styles.container, isCollapsed && styles.containerCollapsed])}>
+      <View style={StyleSheet.flatten([styles.logoContainer, isCollapsed && styles.logoContainerCollapsed])}>
+        {!isCollapsed ? (
+          <>
+            <Image
+              source={require('@/assets/images/barani-logo.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+            <Pressable style={styles.collapseButton} onPress={toggleSidebar}>
+              <Ionicons name="chevron-back" size={20} color={Brand.colors.textSecondary} />
+            </Pressable>
+          </>
+        ) : (
+          <Pressable style={styles.collapseButtonCollapsed} onPress={toggleSidebar}>
+            <Ionicons name="menu-outline" size={24} color={Brand.colors.primary} />
+          </Pressable>
+        )}
       </View>
 
-      <View style={styles.navContainer}>
+      <View style={StyleSheet.flatten([styles.navContainer, isCollapsed && styles.navContainerCollapsed])}>
         {navItems.map((item) => {
           const active = isActive(item.path);
           return (
             <Link href={item.path as any} key={item.name} asChild>
-              <Pressable style={StyleSheet.flatten([styles.navItem, active && styles.navItemActive])}>
+              <Pressable 
+                style={StyleSheet.flatten([
+                  styles.navItem, 
+                  active && styles.navItemActive,
+                  isCollapsed && styles.navItemCollapsed,
+                  isCollapsed && active && styles.navItemActiveCollapsed
+                ])}
+              >
                 <Ionicons
                   name={active && item.icon.endsWith('-outline') ? (item.icon.replace('-outline', '') as any) : item.icon}
                   size={22}
                   color={active ? Brand.colors.primary : Brand.colors.textSecondary}
-                  style={styles.icon}
+                  style={isCollapsed ? undefined : styles.icon}
                 />
-                <Text style={StyleSheet.flatten([styles.navText, active && styles.navTextActive])}>
-                  {item.name}
-                </Text>
+                {!isCollapsed && (
+                  <Text style={StyleSheet.flatten([styles.navText, active && styles.navTextActive])}>
+                    {item.name}
+                  </Text>
+                )}
               </Pressable>
             </Link>
           );
@@ -107,20 +129,50 @@ const styles = StyleSheet.create({
     borderRightColor: Brand.colors.border,
     height: '100%',
   },
+  containerCollapsed: {
+    width: 80,
+  },
   logoContainer: {
-    padding: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: Brand.colors.border,
     height: 80, // Match header height
+  },
+  logoContainerCollapsed: {
+    padding: 12,
+    alignItems: 'center',
     justifyContent: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: Brand.colors.border,
+    height: 80,
   },
   logo: {
-    width: '100%',
+    width: 140,
     height: 40,
+  },
+  collapseButton: {
+    padding: 6,
+    borderRadius: 6,
+    backgroundColor: '#F3F4F6',
+  },
+  collapseButtonCollapsed: {
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: '#F0F5FF',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   navContainer: {
     padding: 16,
     gap: 8,
+  },
+  navContainerCollapsed: {
+    padding: 12,
+    alignItems: 'center',
+    gap: 12,
   },
   navItem: {
     flexDirection: 'row',
@@ -129,11 +181,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 8,
   },
+  navItemCollapsed: {
+    paddingVertical: 12,
+    paddingHorizontal: 0,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   navItemActive: {
     backgroundColor: '#F0F5FF', // Light blue background for active
     borderLeftWidth: 4,
     borderLeftColor: Brand.colors.primary,
     paddingLeft: 12, // Adjust padding to account for border
+  },
+  navItemActiveCollapsed: {
+    borderLeftWidth: 0,
+    backgroundColor: '#F0F5FF',
   },
   icon: {
     marginRight: 12,

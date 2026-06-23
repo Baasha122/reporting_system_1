@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
 import { AuthProvider } from '@/contexts/auth-context';
+import { SidebarProvider } from '@/contexts/sidebar-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 function RootLayoutNav() {
@@ -26,7 +27,10 @@ function RootLayoutNav() {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <RootLayoutNav />
+      <SidebarProvider>
+        <RootLayoutNav />
+      </SidebarProvider>
     </AuthProvider>
   );
 }
+
