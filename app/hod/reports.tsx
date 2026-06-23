@@ -3,7 +3,7 @@ import { Picker } from '@react-native-picker/picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import React, { useEffect, useState, useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Alert, Platform, Modal, SafeAreaView, TextInput, Pressable } from 'react-native';
+import { ScrollView, StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Alert, Platform, Modal, SafeAreaView, TextInput, Pressable, FlatList, useWindowDimensions } from 'react-native';
 import * as XLSX from 'xlsx-js-style';
 
 import { Brand } from '@/constants/brand';
@@ -13,6 +13,8 @@ import { useAuth } from '@/contexts/auth-context';
 import { supabase } from '@/lib/supabase';
 
 export default function ReportsScreen() {
+  const { width } = useWindowDimensions();
+  const numColumns = width >= 1200 ? 3 : (width >= 768 ? 2 : 1);
   const [reports, setReports] = useState<DailyReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
@@ -659,90 +661,93 @@ export default function ReportsScreen() {
           )}
         </ScrollView>
       ) : (
-        <ScrollView
+        <FlatList
+          key={numColumns}
+          numColumns={numColumns}
+          columnWrapperStyle={numColumns > 1 ? styles.rowWrapper : undefined}
+          data={groupedReports}
+          keyExtractor={(item) => item.employee.id}
           contentContainerStyle={styles.gridContainer}
           showsVerticalScrollIndicator={false}
-        >
-          {groupedReports.length === 0 ? (
+          ListEmptyComponent={
             <Text style={styles.emptyText}>No reports found.</Text>
-          ) : (
-            groupedReports.map(group => {
-              const emp = group.employee;
-              const uniqueDays = new Set(group.reports.map(r => r.report_date)).size;
-              const totalReports = group.reports.length;
-              const totalHours = group.reports.reduce((sum, r) => sum + parseHours(r.hours_worked), 0);
-              const targetDays = filter === 'weekly' ? 6 : 26;
-              const targetHours = targetDays * 8;
-              const efficiency = ((totalHours / targetHours) * 100).toFixed(1);
+          }
+          renderItem={({ item: group }) => {
+            const emp = group.employee;
+            const uniqueDays = new Set(group.reports.map(r => r.report_date)).size;
+            const totalReports = group.reports.length;
+            const totalHours = group.reports.reduce((sum, r) => sum + parseHours(r.hours_worked), 0);
+            const targetDays = filter === 'weekly' ? 6 : 26;
+            const targetHours = targetDays * 8;
+            const efficiency = ((totalHours / targetHours) * 100).toFixed(1);
 
-              return (
-                <Pressable
-                  key={emp.id}
-                  style={({ hovered }) => [
-                    styles.card,
-                    selectedEmployees.has(emp.id) && styles.cardSelected,
-                    hovered && styles.cardHovered
-                  ] as any}
-                >
-                  <View style={styles.cardHeader}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.cardEmpName} numberOfLines={1}>{emp.name}</Text>
-                      <Text style={styles.cardEmpId}>{emp.employee_id} • {emp.department}</Text>
-                    </View>
-                    <Pressable
-                      style={({ hovered, pressed }) => [
-                        styles.checkbox,
-                        selectedEmployees.has(emp.id) && styles.checkboxSelected,
-                        hovered && styles.checkboxHovered,
-                        pressed && { opacity: 0.7 }
-                      ] as any}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        toggleSelection(emp.id);
-                      }}
-                    >
-                      {selectedEmployees.has(emp.id) && <Ionicons name="checkmark" size={14} color="#FFF" />}
-                    </Pressable>
+            return (
+              <Pressable
+                key={emp.id}
+                style={({ hovered }) => [
+                  styles.card,
+                  selectedEmployees.has(emp.id) && styles.cardSelected,
+                  hovered && styles.cardHovered
+                ] as any}
+              >
+                <View style={styles.cardHeader}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.cardEmpName} numberOfLines={1}>{emp.name}</Text>
+                    <Text style={styles.cardEmpId}>{emp.employee_id} • {emp.department}</Text>
                   </View>
+                  <Pressable
+                    style={({ hovered, pressed }) => [
+                      styles.checkbox,
+                      selectedEmployees.has(emp.id) && styles.checkboxSelected,
+                      hovered && styles.checkboxHovered,
+                      pressed && { opacity: 0.7 }
+                    ] as any}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      toggleSelection(emp.id);
+                    }}
+                  >
+                    {selectedEmployees.has(emp.id) && <Ionicons name="checkmark" size={14} color="#FFF" />}
+                  </Pressable>
+                </View>
 
-                  <View style={styles.cardBody}>
-                    <View style={styles.fieldRow}>
-                      <Text style={styles.cardLabel}>No. of Days:</Text>
-                      <Text style={styles.cardValue}>{uniqueDays} / {targetDays}</Text>
-                    </View>
-                    <View style={styles.fieldRow}>
-                      <Text style={styles.cardLabel}>Reporting Submission:</Text>
-                      <Text style={styles.cardValue}>{totalReports} Reports</Text>
-                    </View>
-                    <View style={styles.fieldRow}>
-                      <Text style={styles.cardLabel}>Efficiency:</Text>
-                      <Text style={[styles.cardValue, { color: Number(efficiency) >= 100 ? Brand.colors.success : Brand.colors.warning }]}>
-                        {efficiency}%
-                      </Text>
-                    </View>
-                    <View style={styles.fieldRow}>
-                      <Text style={styles.cardLabel}>Total Hrs:</Text>
-                      <Text style={styles.cardValue}>{totalHours.toFixed(1)} hrs</Text>
-                    </View>
+                <View style={styles.cardBody}>
+                  <View style={styles.fieldRow}>
+                    <Text style={styles.cardLabel}>No. of Days:</Text>
+                    <Text style={styles.cardValue}>{uniqueDays} / {targetDays}</Text>
                   </View>
+                  <View style={styles.fieldRow}>
+                    <Text style={styles.cardLabel}>Reporting Submission:</Text>
+                    <Text style={styles.cardValue}>{totalReports} Reports</Text>
+                  </View>
+                  <View style={styles.fieldRow}>
+                    <Text style={styles.cardLabel}>Efficiency:</Text>
+                    <Text style={[styles.cardValue, { color: Number(efficiency) >= 100 ? Brand.colors.success : Brand.colors.warning }]}>
+                      {efficiency}%
+                    </Text>
+                  </View>
+                  <View style={styles.fieldRow}>
+                    <Text style={styles.cardLabel}>Total Hrs:</Text>
+                    <Text style={styles.cardValue}>{totalHours.toFixed(1)} hrs</Text>
+                  </View>
+                </View>
 
-                  <View style={{ alignItems: 'flex-end', marginTop: 12 }}>
-                    <Pressable
-                      style={({ hovered, pressed }) => [
-                        styles.viewDetailsBtn,
-                        hovered && styles.viewDetailsBtnHovered,
-                        pressed && { opacity: 0.7 }
-                      ] as any}
-                      onPress={() => setSelectedEmployeeDetails(group)}
-                    >
-                      <Text style={styles.viewDetailsText}>View Details</Text>
-                    </Pressable>
-                  </View>
-                </Pressable>
-              );
-            })
-          )}
-        </ScrollView>
+                <View style={{ alignItems: 'flex-end', marginTop: 12 }}>
+                  <Pressable
+                    style={({ hovered, pressed }) => [
+                      styles.viewDetailsBtn,
+                      hovered && styles.viewDetailsBtnHovered,
+                      pressed && { opacity: 0.7 }
+                    ] as any}
+                    onPress={() => setSelectedEmployeeDetails(group)}
+                  >
+                    <Text style={styles.viewDetailsText}>View Details</Text>
+                  </Pressable>
+                </View>
+              </Pressable>
+            );
+          }}
+        />
       )}
 
       {/* Employee Working Details Modal */}
@@ -1088,18 +1093,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   gridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 16,
     paddingBottom: 24,
+    gap: 16,
+  },
+  rowWrapper: {
+    flexDirection: 'row',
+    gap: 16,
   },
   card: {
+    flex: 1,
     backgroundColor: '#FFF',
     borderRadius: 12,
     borderWidth: 2,
     borderColor: Brand.colors.border,
     padding: 16,
-    width: 320, // fixed width for cards to form a nice grid
     minHeight: 200,
     transitionProperty: 'all',
     transitionDuration: '200ms',
