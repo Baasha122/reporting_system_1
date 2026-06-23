@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState, useEffect, useMemo } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator, ScrollView, Platform, KeyboardAvoidingView } from 'react-native';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator, ScrollView, Platform, KeyboardAvoidingView, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -288,6 +288,187 @@ export default function EmployeeDashboard() {
     }
   };
 
+  const { width } = useWindowDimensions();
+  const isDesktop = Platform.OS === 'web' && width >= 1024;
+
+  const renderFormFields = () => (
+    <>
+      {/* Top Row: Project & Customer */}
+      <View style={[styles.fieldRowHorizontal, { zIndex: 2 }]}>
+        <View style={styles.flexHalf}>
+          <Text style={styles.label}>Project selection</Text>
+          <View style={[styles.inputWrapper, { padding: 0 }]}>
+            <CustomPicker
+              selectedValue={selectedProject}
+              onValueChange={(val) => {
+                setSelectedProject(val);
+                setWorkOrderNo('');
+                setCustomCustomerName('');
+                setMachineName('');
+              }}
+              style={styles.picker}
+              placeholder="Select Project"
+              items={departmentProjects.map(proj => ({
+                label: `${proj.projectid} - ${proj.projectname}`,
+                value: proj.projectid
+              }))}
+            />
+          </View>
+        </View>
+        <View style={styles.flexHalf}>
+          <Text style={styles.label}>customer</Text>
+          {isServiceYear ? (
+            <TextInput
+              style={[styles.input, { backgroundColor: Brand.colors.white }]}
+              placeholder="Enter Customer Name"
+              placeholderTextColor="#9CA3AF"
+              value={customCustomerName}
+              onChangeText={setCustomCustomerName}
+            />
+          ) : (
+            <TextInput
+              style={[styles.input, { color: '#6B7280', backgroundColor: '#F3F4F6' }]}
+              placeholder="Auto-filled"
+              placeholderTextColor="#9CA3AF"
+              value={selectedProjObj?.customername || ''}
+              editable={false}
+            />
+          )}
+        </View>
+      </View>
+
+      {/* Conditional Input Rows */}
+      {isServiceYear && (
+        <View style={styles.fieldRow}>
+          <Text style={styles.label}>Work Order Number</Text>
+          <TextInput
+            style={[styles.input, { backgroundColor: Brand.colors.white }]}
+            placeholder="Enter Work Order Number"
+            placeholderTextColor="#9CA3AF"
+            value={workOrderNo}
+            onChangeText={setWorkOrderNo}
+          />
+        </View>
+      )}
+
+      {isMaintenance && (
+        <View style={styles.fieldRow}>
+          <Text style={styles.label}>Machine Name</Text>
+          <TextInput
+            style={[styles.input, { backgroundColor: Brand.colors.white }]}
+            placeholder="Enter Machine Name"
+            placeholderTextColor="#9CA3AF"
+            value={machineName}
+            onChangeText={setMachineName}
+          />
+        </View>
+      )}
+
+      {/* Middle Row: Task Description */}
+      <View style={styles.fieldRow}>
+        <Text style={styles.label}>task Description</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          placeholder="Enter task description..."
+          placeholderTextColor="#9CA3AF"
+          multiline
+          numberOfLines={4}
+          value={description}
+          onChangeText={setDescription}
+          textAlignVertical="top"
+        />
+      </View>
+
+      {/* Third Row: Times & Add Button */}
+      <View style={styles.fieldRowHorizontal}>
+        <View style={styles.flexThird}>
+          <Text style={styles.label}>start time</Text>
+          <View style={[styles.inputWrapper, { padding: 0 }]}>
+            <CustomPicker
+              selectedValue={startTime}
+              onValueChange={(val) => setStartTime(val)}
+              style={styles.picker}
+              placeholder="Start Time"
+              items={timeOptions.map(time => ({ label: time, value: time }))}
+            />
+          </View>
+        </View>
+        <View style={styles.flexThird}>
+          <Text style={styles.label}>End Time</Text>
+          <View style={[styles.inputWrapper, { padding: 0 }]}>
+            <CustomPicker
+              selectedValue={endTime}
+              onValueChange={(val) => setEndTime(val)}
+              style={styles.picker}
+              placeholder="End Time"
+              items={timeOptions.map(time => ({ label: time, value: time }))}
+            />
+          </View>
+        </View>
+        <View style={styles.flexThird}>
+          <Text style={styles.label}>Duration</Text>
+          <TextInput
+            style={[styles.input, styles.durationInput]}
+            placeholder="HH:MM"
+            placeholderTextColor="#9CA3AF"
+            value={duration}
+            onChangeText={setDuration}
+          />
+        </View>
+        
+        <View style={styles.addButtonWrapper}>
+          <TouchableOpacity style={styles.addButton} onPress={handleAddTask}>
+            <Text style={styles.addButtonText}>add</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </>
+  );
+
+  const renderTableAndSubmit = () => (
+    <>
+      {/* Table */}
+      <View style={styles.tableContainer}>
+        <View style={styles.tableHeaderRow}>
+          <Text style={[styles.tableHeaderCell, { flex: 0.5, textAlign: 'center' }]}>S.NO</Text>
+          <Text style={[styles.tableHeaderCell, { flex: 3 }]}>Tasks</Text>
+          <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: 'center' }]}>Duration</Text>
+        </View>
+        
+        {dailyTasks.length === 0 ? (
+          <View style={styles.emptyTable}>
+            <Text style={styles.emptyTableText}>No tasks added yet.</Text>
+          </View>
+        ) : (
+          dailyTasks.map((task, index) => (
+            <View style={styles.tableRow} key={index}>
+              <Text style={[styles.tableCell, { flex: 0.5, textAlign: 'center' }]}>{index + 1}</Text>
+              <Text style={[styles.tableCell, { flex: 3 }]} numberOfLines={2}>
+                <Text style={{fontWeight: '600'}}>{task.taskName}</Text>: {task.rawDescription}
+              </Text>
+              <Text style={[styles.tableCell, { flex: 1, textAlign: 'center' }]}>{task.duration}</Text>
+            </View>
+          ))
+        )}
+      </View>
+
+      {/* Save Button */}
+      <View style={styles.saveContainer}>
+        <TouchableOpacity 
+          style={[styles.saveButton, (isSaving || dailyTasks.length === 0) && { opacity: 0.7 }]} 
+          onPress={handleSaveAll}
+          disabled={isSaving || dailyTasks.length === 0}
+        >
+          {isSaving ? (
+            <ActivityIndicator color={Brand.colors.white} size="small" />
+          ) : (
+            <Text style={styles.saveButtonText}>save</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+    </>
+  );
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#F4F6F9' }} edges={['top', 'left', 'right']}>
       <KeyboardAvoidingView 
@@ -296,193 +477,59 @@ export default function EmployeeDashboard() {
       >
         <ScrollView 
           style={styles.container} 
-          contentContainerStyle={[styles.contentContainer, { paddingBottom: 120 }]} 
+          contentContainerStyle={[
+            styles.contentContainer, 
+            { paddingBottom: 120 },
+            isDesktop && { maxWidth: '100%' }
+          ]} 
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-      <View style={styles.card}>
-        <View style={styles.header}>
-          <View style={styles.headerIndicator} />
-          <Text style={styles.headerTitle}>DAILY TASK TRACKER</Text>
-        </View>
-
-        <View style={styles.form}>
-          {/* Top Row: Project & Customer */}
-          <View style={[styles.fieldRowHorizontal, { zIndex: 2 }]}>
-            <View style={styles.flexHalf}>
-              <Text style={styles.label}>Project selection</Text>
-              <View style={[styles.inputWrapper, { padding: 0 }]}>
-                <CustomPicker
-                  selectedValue={selectedProject}
-                  onValueChange={(val) => {
-                    setSelectedProject(val);
-                    setWorkOrderNo('');
-                    setCustomCustomerName('');
-                    setMachineName('');
-                  }}
-                  style={styles.picker}
-                  placeholder="Select Project"
-                  items={departmentProjects.map(proj => ({
-                    label: `${proj.projectid} - ${proj.projectname}`,
-                    value: proj.projectid
-                  }))}
-                />
-              </View>
-            </View>
-            <View style={styles.flexHalf}>
-              <Text style={styles.label}>customer</Text>
-              {isServiceYear ? (
-                <TextInput
-                  style={[styles.input, { backgroundColor: Brand.colors.white }]}
-                  placeholder="Enter Customer Name"
-                  placeholderTextColor="#9CA3AF"
-                  value={customCustomerName}
-                  onChangeText={setCustomCustomerName}
-                />
-              ) : (
-                <TextInput
-                  style={[styles.input, { color: '#6B7280', backgroundColor: '#F3F4F6' }]}
-                  placeholder="Auto-filled"
-                  placeholderTextColor="#9CA3AF"
-                  value={selectedProjObj?.customername || ''}
-                  editable={false}
-                />
-              )}
-            </View>
-          </View>
-
-          {/* Conditional Input Rows */}
-          {isServiceYear && (
-            <View style={styles.fieldRow}>
-              <Text style={styles.label}>Work Order Number</Text>
-              <TextInput
-                style={[styles.input, { backgroundColor: Brand.colors.white }]}
-                placeholder="Enter Work Order Number"
-                placeholderTextColor="#9CA3AF"
-                value={workOrderNo}
-                onChangeText={setWorkOrderNo}
-              />
-            </View>
-          )}
-
-          {isMaintenance && (
-            <View style={styles.fieldRow}>
-              <Text style={styles.label}>Machine Name</Text>
-              <TextInput
-                style={[styles.input, { backgroundColor: Brand.colors.white }]}
-                placeholder="Enter Machine Name"
-                placeholderTextColor="#9CA3AF"
-                value={machineName}
-                onChangeText={setMachineName}
-              />
-            </View>
-          )}
-
-          {/* Middle Row: Task Description */}
-          <View style={styles.fieldRow}>
-            <Text style={styles.label}>task Description</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Enter task description..."
-              placeholderTextColor="#9CA3AF"
-              multiline
-              numberOfLines={4}
-              value={description}
-              onChangeText={setDescription}
-              textAlignVertical="top"
-            />
-          </View>
-
-          {/* Third Row: Times & Add Button */}
-          <View style={styles.fieldRowHorizontal}>
-            <View style={styles.flexThird}>
-              <Text style={styles.label}>start time</Text>
-              <View style={[styles.inputWrapper, { padding: 0 }]}>
-                <CustomPicker
-                  selectedValue={startTime}
-                  onValueChange={(val) => setStartTime(val)}
-                  style={styles.picker}
-                  placeholder="Start Time"
-                  items={timeOptions.map(time => ({ label: time, value: time }))}
-                />
-              </View>
-            </View>
-            <View style={styles.flexThird}>
-              <Text style={styles.label}>End Time</Text>
-              <View style={[styles.inputWrapper, { padding: 0 }]}>
-                <CustomPicker
-                  selectedValue={endTime}
-                  onValueChange={(val) => setEndTime(val)}
-                  style={styles.picker}
-                  placeholder="End Time"
-                  items={timeOptions.map(time => ({ label: time, value: time }))}
-                />
-              </View>
-            </View>
-            <View style={styles.flexThird}>
-              <Text style={styles.label}>Duration</Text>
-              <TextInput
-                style={[styles.input, styles.durationInput]}
-                placeholder="HH:MM"
-                placeholderTextColor="#9CA3AF"
-                value={duration}
-                onChangeText={setDuration}
-              />
-            </View>
-            
-            <View style={styles.addButtonWrapper}>
-              <TouchableOpacity style={styles.addButton} onPress={handleAddTask}>
-                <Text style={styles.addButtonText}>add</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Table */}
-          <View style={styles.tableContainer}>
-            <View style={styles.tableHeaderRow}>
-              <Text style={[styles.tableHeaderCell, { flex: 0.5, textAlign: 'center' }]}>S.NO</Text>
-              <Text style={[styles.tableHeaderCell, { flex: 3 }]}>Tasks</Text>
-              <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: 'center' }]}>Duration</Text>
-            </View>
-            
-            {dailyTasks.length === 0 ? (
-              <View style={styles.emptyTable}>
-                <Text style={styles.emptyTableText}>No tasks added yet.</Text>
-              </View>
-            ) : (
-              dailyTasks.map((task, index) => (
-                <View style={styles.tableRow} key={index}>
-                  <Text style={[styles.tableCell, { flex: 0.5, textAlign: 'center' }]}>{index + 1}</Text>
-                  <Text style={[styles.tableCell, { flex: 3 }]} numberOfLines={2}>
-                    <Text style={{fontWeight: '600'}}>{task.taskName}</Text>: {task.rawDescription}
-                  </Text>
-                  <Text style={[styles.tableCell, { flex: 1, textAlign: 'center' }]}>{task.duration}</Text>
+          <View style={isDesktop ? styles.desktopLayoutRow : styles.card}>
+            {isDesktop ? (
+              <>
+                {/* Left Column: Form Card */}
+                <View style={styles.desktopFormColumn}>
+                  <View style={styles.header}>
+                    <View style={styles.headerIndicator} />
+                    <Text style={styles.headerTitle}>DAILY TASK TRACKER</Text>
+                  </View>
+                  <View style={styles.form}>
+                    {renderFormFields()}
+                  </View>
                 </View>
-              ))
+
+                {/* Right Column: Table Card & Submit */}
+                <View style={styles.desktopTableColumn}>
+                  <View style={styles.header}>
+                    <View style={styles.headerIndicator} />
+                    <Text style={styles.headerTitle}>TODAY'S LOGGED TASKS</Text>
+                  </View>
+                  <View style={styles.form}>
+                    {renderTableAndSubmit()}
+                  </View>
+                </View>
+              </>
+            ) : (
+              // Mobile / Tablet: Single Card Vertical Stack (Current layout)
+              <>
+                <View style={styles.header}>
+                  <View style={styles.headerIndicator} />
+                  <Text style={styles.headerTitle}>DAILY TASK TRACKER</Text>
+                </View>
+                <View style={styles.form}>
+                  {renderFormFields()}
+                  {renderTableAndSubmit()}
+                </View>
+              </>
             )}
           </View>
-
-          {/* Save Button */}
-          <View style={styles.saveContainer}>
-            <TouchableOpacity 
-              style={[styles.saveButton, (isSaving || dailyTasks.length === 0) && { opacity: 0.7 }]} 
-              onPress={handleSaveAll}
-              disabled={isSaving || dailyTasks.length === 0}
-            >
-              {isSaving ? (
-                <ActivityIndicator color={Brand.colors.white} size="small" />
-              ) : (
-                <Text style={styles.saveButtonText}>save</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
@@ -501,6 +548,34 @@ const styles = StyleSheet.create({
     shadowRadius: 15,
     elevation: 3,
     maxWidth: 900,
+  },
+  desktopLayoutRow: {
+    flexDirection: 'row',
+    gap: 24,
+    width: '100%',
+    alignItems: 'flex-start',
+  },
+  desktopFormColumn: {
+    flex: 45,
+    backgroundColor: Brand.colors.card,
+    borderRadius: 12,
+    padding: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+     shadowOpacity: 0.05,
+    shadowRadius: 15,
+    elevation: 3,
+  },
+  desktopTableColumn: {
+    flex: 55,
+    backgroundColor: Brand.colors.card,
+    borderRadius: 12,
+    padding: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 15,
+    elevation: 3,
   },
   header: {
     flexDirection: 'row',

@@ -14,6 +14,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -24,6 +25,8 @@ import { User } from '@/types/auth';
 
 export default function EmployeeManagementScreen() {
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const numColumns = width >= 1200 ? 3 : (width >= 768 ? 2 : 1);
   const { user } = useAuth();
   const [employees, setEmployees] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -428,6 +431,9 @@ export default function EmployeeManagementScreen() {
         </View>
       ) : (
         <FlatList
+          key={numColumns}
+          numColumns={numColumns}
+          columnWrapperStyle={numColumns > 1 ? styles.rowWrapper : undefined}
           data={filteredEmployees}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
@@ -870,6 +876,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   card: {
+    flex: 1,
     backgroundColor: '#FFF',
     borderRadius: 12,
     padding: 20,
@@ -880,6 +887,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.02,
     shadowRadius: 4,
     elevation: 1,
+  },
+  rowWrapper: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 16,
   },
   cardHeader: {
     flexDirection: 'row',
