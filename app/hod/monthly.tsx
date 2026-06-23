@@ -40,7 +40,7 @@ export default function MonthlyScreen() {
       // Fetch profiles to get department mapping
       const { data: profiles, error: profileErr } = await supabase
         .from('profiles')
-        .select('id, department');
+        .select('id, department, employee_id');
       
       if (profileErr) throw profileErr;
 
@@ -54,19 +54,61 @@ export default function MonthlyScreen() {
       // Fetch project rows (synchronized reports)
       const { data: projects, error: projectsErr } = await supabase
         .from('project')
-        .select('Department, duration');
+        .select('*');
 
       if (projectsErr) throw projectsErr;
 
-      // Calculate Card stats based on daily_reports
-      if (reports) {
-        const totalHours = reports.reduce((acc, curr) => acc + Number(curr.hours_worked || 0), 0);
-        const totalReports = reports.length;
-        const approvedReports = reports.filter(d => d.status === 'approved').length;
-        const uniqueEmployees = new Set(reports.map(d => d.employee_id)).size;
+      // Calculate unified stats across daily_reports and project tables
+      let totalHours = 0;
+      let totalReports = 0;
+      let approvedReports = 0;
+      const uniqueEmployeeIds = new Set<string>();
 
-        setStats({ totalHours, totalReports, approvedReports, uniqueEmployees });
+      // 1. Accumulate daily_reports (live drafts/reports)
+      if (reports) {
+        reports.forEach(r => {
+          const hrs = Number(r.hours_worked || 0);
+          totalHours += hrs;
+          totalReports += 1;
+          if (r.status === 'approved') {
+            approvedReports += 1;
+          }
+          if (r.employee_id) {
+            uniqueEmployeeIds.add(r.employee_id);
+          }
+        });
       }
+
+      // 2. Accumulate project table (submitted/synchronized reports)
+      if (projects) {
+        projects.forEach(p => {
+          const hrs = parseHours(p.duration || p.hours_worked);
+          totalHours += hrs;
+          totalReports += 1;
+          // Synchronized tasks in project table are treated as approved/submitted logs
+          approvedReports += 1;
+          
+          // Map employee_ID from project table to profile ID
+          const empCode = p.employee_ID || p.Employee_ID || p.employee_id || p.Employee_Id;
+          if (empCode && profiles) {
+            const profile = profiles.find(pr => pr.employee_id === empCode);
+            if (profile) {
+              uniqueEmployeeIds.add(profile.id);
+            } else {
+              uniqueEmployeeIds.add(empCode);
+            }
+          } else if (empCode) {
+            uniqueEmployeeIds.add(empCode);
+          }
+        });
+      }
+
+      setStats({
+        totalHours: parseFloat(totalHours.toFixed(1)),
+        totalReports,
+        approvedReports,
+        uniqueEmployees: uniqueEmployeeIds.size,
+      });
 
       // Group and calculate Department Breakdown
       const deptMap: Record<string, { hours: number, count: number }> = {};
