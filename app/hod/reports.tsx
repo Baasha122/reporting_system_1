@@ -25,6 +25,11 @@ export default function ReportsScreen() {
   const [selectedEmployeeDetails, setSelectedEmployeeDetails] = useState<{ employee: any, reports: DailyReport[] } | null>(null);
   const [departmentEmployees, setDepartmentEmployees] = useState<any[]>([]);
   const [departmentProjects, setDepartmentProjects] = useState<any[]>([]);
+  const [modalPage, setModalPage] = useState(1);
+
+  useEffect(() => {
+    setModalPage(1);
+  }, [selectedEmployeeDetails]);
 
   useEffect(() => {
     loadReports();
@@ -196,6 +201,13 @@ export default function ReportsScreen() {
     });
     return Object.entries(groups).map(([project, tasks]) => ({ project, tasks }));
   }, [selectedEmployeeDetails]);
+
+  const ITEMS_PER_PAGE = 3;
+  const totalModalPages = Math.ceil(groupedEmployeeTasks.length / ITEMS_PER_PAGE) || 1;
+
+  const paginatedTasks = useMemo(() => {
+    return groupedEmployeeTasks.slice((modalPage - 1) * ITEMS_PER_PAGE, modalPage * ITEMS_PER_PAGE);
+  }, [groupedEmployeeTasks, modalPage]);
 
   const extractTaskDescription = (fullDesc: string) => {
     if (!fullDesc) return '';
@@ -775,47 +787,78 @@ export default function ReportsScreen() {
 
             <View style={{ flex: 1, padding: 16 }}>
               <View style={styles.tableCard}>
-                <View style={styles.tableHeader}>
-                  <Text style={[styles.col, { flex: 0.5 }]}>S.No</Text>
-                  <Text style={[styles.col, { flex: 1.5 }]}>Project</Text>
-                  <Text style={[styles.col, { flex: 2 }]}>Task Description</Text>
-                  <Text style={[styles.col, { flex: 1.5 }]}>Date and Time</Text>
-                  <Text style={[styles.col, { flex: 0.8, textAlign: 'center' }]}>Hrs</Text>
-                  <Text style={[styles.col, { flex: 1, textAlign: 'right' }]}>Status</Text>
-                </View>
-                <ScrollView showsVerticalScrollIndicator={false}>
-                  {groupedEmployeeTasks.map((group, index) => (
-                    <View key={group.project} style={[styles.tableRow, { paddingVertical: 0, paddingHorizontal: 0, alignItems: 'stretch' }]}>
-                      <View style={{ flex: 2, flexDirection: 'row', padding: 16, borderRightWidth: 1, borderRightColor: '#F3F4F6' }}>
-                        <Text style={[styles.cell, { flex: 0.5, fontWeight: '700' }]}>{index + 1}</Text>
-                        <Text style={[styles.cell, styles.projectHighlight, { flex: 1.5, paddingRight: 8 }]} numberOfLines={2}>{group.project}</Text>
-                      </View>
-                      <View style={{ flex: 5.3, flexDirection: 'column' }}>
-                        {group.tasks.map((task, tIndex) => (
-                          <View key={task.id} style={{
-                            flexDirection: 'row',
-                            padding: 16,
-                            borderBottomWidth: tIndex < group.tasks.length - 1 ? 1 : 0,
-                            borderBottomColor: '#F3F4F6',
-                            alignItems: 'center'
-                          }}>
-                            <Text style={[styles.cell, { flex: 2 }]} numberOfLines={3}>{extractTaskDescription(task.work_description)}</Text>
-                            <Text style={[styles.cell, { flex: 1.5 }]}>{task.report_date}</Text>
-                            <Text style={[styles.cell, { flex: 0.8, textAlign: 'center' }]}>{task.hours_worked}</Text>
-                            <View style={{ flex: 1, alignItems: 'flex-end' }}>
-                              <View style={[styles.statusBadge, { backgroundColor: getStatusColor(task.status) + '20' }]}>
-                                <Text style={[styles.statusText, { color: getStatusColor(task.status) }]}>
-                                  {task.status.toUpperCase()}
-                                </Text>
-                              </View>
-                            </View>
-                          </View>
-                        ))}
-                      </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={true}>
+                  <View style={{ minWidth: 750 }}>
+                    <View style={styles.tableHeader}>
+                      <Text style={[styles.col, { flex: 0.5 }]}>S.No</Text>
+                      <Text style={[styles.col, { flex: 1.5 }]}>Project</Text>
+                      <Text style={[styles.col, { flex: 2 }]}>Task Description</Text>
+                      <Text style={[styles.col, { flex: 1.5 }]}>Date and Time</Text>
+                      <Text style={[styles.col, { flex: 0.8, textAlign: 'center' }]}>Hrs</Text>
+                      <Text style={[styles.col, { flex: 1, textAlign: 'right' }]}>Status</Text>
                     </View>
-                  ))}
+                    <ScrollView showsVerticalScrollIndicator={false}>
+                      {paginatedTasks.map((group, index) => (
+                        <View key={group.project} style={[styles.tableRow, { paddingVertical: 0, paddingHorizontal: 0, alignItems: 'stretch' }]}>
+                          <View style={{ flex: 2, flexDirection: 'row', padding: 16, borderRightWidth: 1, borderRightColor: '#F3F4F6' }}>
+                            <Text style={[styles.cell, { flex: 0.5, fontWeight: '700' }]}>{(modalPage - 1) * ITEMS_PER_PAGE + index + 1}</Text>
+                            <Text style={[styles.cell, styles.projectHighlight, { flex: 1.5, paddingRight: 8 }]} numberOfLines={2}>{group.project}</Text>
+                          </View>
+                          <View style={{ flex: 5.3, flexDirection: 'column' }}>
+                            {group.tasks.map((task, tIndex) => (
+                              <View key={task.id} style={{
+                                flexDirection: 'row',
+                                padding: 16,
+                                borderBottomWidth: tIndex < group.tasks.length - 1 ? 1 : 0,
+                                borderBottomColor: '#F3F4F6',
+                                alignItems: 'center'
+                              }}>
+                                <Text style={[styles.cell, { flex: 2 }]} numberOfLines={3}>{extractTaskDescription(task.work_description)}</Text>
+                                <Text style={[styles.cell, { flex: 1.5 }]}>{task.report_date}</Text>
+                                <Text style={[styles.cell, { flex: 0.8, textAlign: 'center' }]}>{task.hours_worked}</Text>
+                                <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(task.status) + '20' }]}>
+                                    <Text style={[styles.statusText, { color: getStatusColor(task.status) }]}>
+                                      {task.status.toUpperCase()}
+                                    </Text>
+                                  </View>
+                                </View>
+                              </View>
+                            ))}
+                          </View>
+                        </View>
+                      ))}
+                    </ScrollView>
+                  </View>
                 </ScrollView>
               </View>
+
+              {/* Modal Pagination Controls */}
+              {totalModalPages > 1 && (
+                <View style={styles.paginationRow}>
+                  <TouchableOpacity 
+                    style={[styles.pageBtn, modalPage === 1 && styles.pageBtnDisabled]} 
+                    disabled={modalPage === 1}
+                    onPress={() => setModalPage(prev => Math.max(prev - 1, 1))}
+                  >
+                    <Ionicons name="chevron-back" size={16} color={modalPage === 1 ? '#9CA3AF' : Brand.colors.primary} />
+                    <Text style={[styles.pageBtnText, modalPage === 1 && styles.pageBtnTextDisabled]}>Prev</Text>
+                  </TouchableOpacity>
+                  
+                  <Text style={styles.pageIndicator}>
+                    Page {modalPage} of {totalModalPages}
+                  </Text>
+                  
+                  <TouchableOpacity 
+                    style={[styles.pageBtn, modalPage === totalModalPages && styles.pageBtnDisabled]} 
+                    disabled={modalPage === totalModalPages}
+                    onPress={() => setModalPage(prev => Math.min(prev + 1, totalModalPages))}
+                  >
+                    <Text style={[styles.pageBtnText, modalPage === totalModalPages && styles.pageBtnTextDisabled]}>Next</Text>
+                    <Ionicons name="chevron-forward" size={16} color={modalPage === totalModalPages ? '#9CA3AF' : Brand.colors.primary} />
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           </View>
         </View>
@@ -1230,4 +1273,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cell: { fontSize: 13, color: Brand.colors.text, paddingRight: 8 },
+  paginationRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 16,
+    paddingHorizontal: 8,
+  },
+  pageBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Brand.colors.primary,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    gap: 4,
+    backgroundColor: '#FFF',
+  },
+  pageBtnDisabled: {
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+  },
+  pageBtnText: {
+    color: Brand.colors.primary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  pageBtnTextDisabled: {
+    color: '#9CA3AF',
+  },
+  pageIndicator: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Brand.colors.textSecondary,
+  },
 });
