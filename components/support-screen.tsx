@@ -39,39 +39,71 @@ export default function SupportScreen() {
         </View>
 
         <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Ionicons name="person" size={24} color={Brand.colors.primary} />
-            <Text style={styles.cardTitle}>DHANUSH KUMAR R</Text>
+          <View style={styles.cardRow}>
+            <View style={styles.contactItem}>
+              <Ionicons name="person-outline" size={18} color={Brand.colors.primary} />
+              <Text style={styles.contactName}>DHANUSH KUMAR R</Text>
+            </View>
+            <View style={styles.contactItem}>
+              <Ionicons name="call-outline" size={18} color={Brand.colors.primary} />
+              <Text style={styles.contactText}>9597584613</Text>
+            </View>
+            <View style={styles.contactItem}>
+              <Ionicons name="business-outline" size={18} color={Brand.colors.primary} />
+              <Text style={styles.contactText}>AI&DS</Text>
+            </View>
           </View>
-          <Text style={styles.cardText}>9597584613</Text>
-          <Text style={styles.cardSubText}>Department: AI&DS</Text>
         </View>
 
         <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Ionicons name="person" size={24} color={Brand.colors.primary} />
-            <Text style={styles.cardTitle}>DINESH K</Text>
+          <View style={styles.cardRow}>
+            <View style={styles.contactItem}>
+              <Ionicons name="person-outline" size={18} color={Brand.colors.primary} />
+              <Text style={styles.contactName}>DINESH K</Text>
+            </View>
+            <View style={styles.contactItem}>
+              <Ionicons name="call-outline" size={18} color={Brand.colors.primary} />
+              <Text style={styles.contactText}>8637652944</Text>
+            </View>
+            <View style={styles.contactItem}>
+              <Ionicons name="business-outline" size={18} color={Brand.colors.primary} />
+              <Text style={styles.contactText}>CSE</Text>
+            </View>
           </View>
-          <Text style={styles.cardText}>8637652944</Text>
-          <Text style={styles.cardSubText}>Department: CSE</Text>
         </View>
 
         <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Ionicons name="person" size={24} color={Brand.colors.primary} />
-            <Text style={styles.cardTitle}>SANTHOSH KUMAR K</Text>
+          <View style={styles.cardRow}>
+            <View style={styles.contactItem}>
+              <Ionicons name="person-outline" size={18} color={Brand.colors.primary} />
+              <Text style={styles.contactName}>SANTHOSH KUMAR K</Text>
+            </View>
+            <View style={styles.contactItem}>
+              <Ionicons name="call-outline" size={18} color={Brand.colors.primary} />
+              <Text style={styles.contactText}>9361766562</Text>
+            </View>
+            <View style={styles.contactItem}>
+              <Ionicons name="business-outline" size={18} color={Brand.colors.primary} />
+              <Text style={styles.contactText}>IT</Text>
+            </View>
           </View>
-          <Text style={styles.cardText}>9361766562</Text>
-          <Text style={styles.cardSubText}>Department: IT</Text>
         </View>
 
         <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Ionicons name="person" size={24} color={Brand.colors.primary} />
-            <Text style={styles.cardTitle}>SANJAY V</Text>
+          <View style={styles.cardRow}>
+            <View style={styles.contactItem}>
+              <Ionicons name="person-outline" size={18} color={Brand.colors.primary} />
+              <Text style={styles.contactName}>SANJAY V</Text>
+            </View>
+            <View style={styles.contactItem}>
+              <Ionicons name="call-outline" size={18} color={Brand.colors.primary} />
+              <Text style={styles.contactText}>7539922117</Text>
+            </View>
+            <View style={styles.contactItem}>
+              <Ionicons name="business-outline" size={18} color={Brand.colors.primary} />
+              <Text style={styles.contactText}>IT</Text>
+            </View>
           </View>
-          <Text style={styles.cardText}>7539922117</Text>
-          <Text style={styles.cardSubText}>Department: IT</Text>
         </View>
       </ScrollView>
     </View>
@@ -190,5 +222,27 @@ const styles = StyleSheet.create({
     color: Brand.colors.textSecondary,
     marginLeft: 36,
     marginTop: 4,
+  },
+  cardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  contactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  contactName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Brand.colors.text,
+  },
+  contactText: {
+    fontSize: 14,
+    color: Brand.colors.textSecondary,
   },
 });
