@@ -627,14 +627,30 @@ export default function ReportsScreen() {
     return groupedEmployeeTasks.slice((modalPage - 1) * ITEMS_PER_PAGE, modalPage * ITEMS_PER_PAGE);
   }, [groupedEmployeeTasks, modalPage]);
 
+  const cleanText = (str: string): string => {
+    if (!str) return '';
+    const ampersandCount = (str.match(/&/g) || []).length;
+    if (ampersandCount > 3 && ampersandCount > str.length * 0.3) {
+      let clean = str.replace(/&/g, '');
+      clean = clean.replace(/^%[^a-zA-Z0-9]*/, '');
+      clean = clean.replace(/^[^\x20-\x7E]+/, '');
+      clean = clean.replace(/\s+/g, ' ');
+      return clean.trim();
+    }
+    return str;
+  };
+
   const extractTaskDescription = (fullDesc: string) => {
     if (!fullDesc) return '';
     const taskMarker = 'Task:\n';
     const idx = fullDesc.indexOf(taskMarker);
+    let desc = fullDesc;
     if (idx !== -1) {
-      return fullDesc.substring(idx + taskMarker.length).trim();
+      desc = fullDesc.substring(idx + taskMarker.length).trim();
+    } else {
+      desc = fullDesc.trim();
     }
-    return fullDesc.trim();
+    return cleanText(desc);
   };
 
   const parseHours = (durationStr: any): number => {
