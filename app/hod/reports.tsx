@@ -629,15 +629,24 @@ export default function ReportsScreen() {
 
   const cleanText = (str: string): string => {
     if (!str) return '';
-    const ampersandCount = (str.match(/&/g) || []).length;
-    if (ampersandCount > 3 && ampersandCount > str.length * 0.3) {
-      let clean = str.replace(/&/g, '');
-      clean = clean.replace(/^%[^a-zA-Z0-9]*/, '');
-      clean = clean.replace(/^[^\x20-\x7E]+/, '');
-      clean = clean.replace(/\s+/g, ' ');
-      return clean.trim();
-    }
-    return str;
+    
+    const cleanLine = (line: string): string => {
+      const ampersandCount = (line.match(/&/g) || []).length;
+      if (ampersandCount > 3 && ampersandCount > line.length * 0.2) {
+        let clean = line.replace(/&/g, '');
+        clean = clean.replace(/^%[^a-zA-Z0-9]*/, '');
+        clean = clean.replace(/^[^\x20-\x7E]+/, '');
+        clean = clean.replace(/\s+/g, ' ');
+        return clean.trim();
+      }
+      return line;
+    };
+
+    return str
+      .split('\n')
+      .map(cleanLine)
+      .filter(line => line.length > 0)
+      .join('\n');
   };
 
   const extractTaskDescription = (fullDesc: string) => {
