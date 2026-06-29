@@ -47,5 +47,7 @@ database_sync_service/.env
 database_sync_service/*.log
 database_sync_service/node_modules/
 database_sync_service/daemon/
+database_sync_service/public/
+
 
 

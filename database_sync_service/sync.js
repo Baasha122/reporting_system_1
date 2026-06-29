@@ -278,6 +278,35 @@ if (require.main === module) {
     }
   });
 
+  const publicDir = path.join(__dirname, 'public');
+  if (!fs.existsSync(publicDir)) {
+    fs.mkdirSync(publicDir, { recursive: true });
+  }
+
+  try {
+    const jspdfSrc = path.join(__dirname, '..', 'node_modules', 'jspdf', 'dist', 'jspdf.umd.min.js');
+    const jspdfDest = path.join(publicDir, 'jspdf.umd.min.js');
+    if (fs.existsSync(jspdfSrc)) {
+      fs.copyFileSync(jspdfSrc, jspdfDest);
+      log('Copied jspdf.umd.min.js to public directory.');
+    } else {
+      log(`Warning: jspdf.umd.min.js not found at ${jspdfSrc}`);
+    }
+
+    const autotableSrc = path.join(__dirname, '..', 'node_modules', 'jspdf-autotable', 'dist', 'jspdf.plugin.autotable.min.js');
+    const autotableDest = path.join(publicDir, 'jspdf.plugin.autotable.min.js');
+    if (fs.existsSync(autotableSrc)) {
+      fs.copyFileSync(autotableSrc, autotableDest);
+      log('Copied jspdf.plugin.autotable.min.js to public directory.');
+    } else {
+      log(`Warning: jspdf.plugin.autotable.min.js not found at ${autotableSrc}`);
+    }
+  } catch (copyErr) {
+    log(`Error copying library files: ${copyErr.message}`);
+  }
+
+  app.use('/public', express.static(publicDir));
+
   const apiPort = 8001;
   app.listen(apiPort, '0.0.0.0', () => {
     log(`Local API Server listening on port ${apiPort} (supporting direct emailing)`);

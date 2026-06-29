@@ -5,8 +5,6 @@ import * as Sharing from 'expo-sharing';
 import React, { useEffect, useState, useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Alert, Platform, Modal, SafeAreaView, TextInput, Pressable, FlatList, useWindowDimensions, Linking } from 'react-native';
 import * as XLSX from 'xlsx-js-style';
-import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
 
 import { Brand } from '@/constants/brand';
 import { fetchReports } from '@/services/reports-api';
@@ -210,6 +208,33 @@ export default function ReportsScreen() {
     return groupedReports.filter(g => g.reports.length === 0);
   }, [groupedReports]);
 
+  const loadJsPDFLibrary = (): Promise<any> => {
+    return new Promise((resolve, reject) => {
+      if ((window as any).jspdf) {
+        resolve((window as any).jspdf);
+        return;
+      }
+
+      const serverHost = Platform.OS === 'web' ? window.location.hostname : 'localhost';
+      const jsPdfUrl = `http://${serverHost}:8001/public/jspdf.umd.min.js`;
+      const autotableUrl = `http://${serverHost}:8001/public/jspdf.plugin.autotable.min.js`;
+
+      const script = document.createElement('script');
+      script.src = jsPdfUrl;
+      script.onload = () => {
+        const scriptAutoTable = document.createElement('script');
+        scriptAutoTable.src = autotableUrl;
+        scriptAutoTable.onload = () => {
+          resolve((window as any).jspdf);
+        };
+        scriptAutoTable.onerror = (e) => reject(new Error("Failed to load jsPDF autotable extension. Ensure background service is running."));
+        document.body.appendChild(scriptAutoTable);
+      };
+      script.onerror = (e) => reject(new Error("Failed to load jsPDF core library. Ensure background service is running."));
+      document.body.appendChild(script);
+    });
+  };
+
   const handleSendEmail = (target: 'reminder' | 'consolidated', arg1?: string, arg2?: string) => {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
@@ -233,8 +258,13 @@ export default function ReportsScreen() {
     }
   };
 
-  const generatePDFBase64 = (): string => {
-    const doc = new jsPDF();
+  const generatePDFBase64 = (jspdfModule: any): string => {
+    const jsPDFConstructor = jspdfModule.jsPDF || (window as any).jspdf?.jsPDF;
+    if (!jsPDFConstructor) {
+      throw new Error("jsPDF constructor not found in global namespace");
+    }
+
+    const doc = new jsPDFConstructor();
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const dateStr = yesterday.toISOString().split('T')[0];
@@ -339,6 +369,8 @@ export default function ReportsScreen() {
 
     setEmailSending(true);
     try {
+      const jspdfModule = await loadJsPDFLibrary();
+
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       const dateStr = yesterday.toISOString().split('T')[0];
@@ -357,7 +389,7 @@ export default function ReportsScreen() {
       const totalHours = yesterdayReported.reduce((sum, g) => sum + g.reports.reduce((subSum, r) => subSum + parseHours(r.hours_worked), 0), 0);
       const body = `Hi,\n\nHere is the consolidated work report for yesterday (${dateStr}):\n\n${tasksText}Total Hours Worked across Department: ${totalHours.toFixed(1)} hrs\n\nBest regards,\nDepartment Head`;
 
-      const pdfBase64 = generatePDFBase64();
+      const pdfBase64 = generatePDFBase64(jspdfModule);
 
       const serverHost = Platform.OS === 'web' ? window.location.hostname : 'localhost';
       const apiUrl = `http://${serverHost}:8001/api/send-consolidated-report`;
