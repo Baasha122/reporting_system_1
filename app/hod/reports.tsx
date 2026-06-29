@@ -208,224 +208,70 @@ export default function ReportsScreen() {
     return groupedReports.filter(g => g.reports.length === 0);
   }, [groupedReports]);
 
-  const loadJsPDFLibrary = (): Promise<any> => {
+  const generatePDFBase64FromHtml = (htmlContent: string): Promise<string> => {
     return new Promise((resolve, reject) => {
-      if ((window as any).jspdf) {
-        resolve((window as any).jspdf);
+      if ((window as any).html2pdf) {
+        const html2pdf = (window as any).html2pdf;
+        const element = document.createElement('div');
+        element.innerHTML = htmlContent;
+        element.style.width = '800px';
+        element.style.padding = '20px';
+        element.style.backgroundColor = '#FFFFFF';
+        document.body.appendChild(element);
+
+        const opt = {
+          margin: 10,
+          filename: 'Consolidated_Report.pdf',
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, logging: false },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        html2pdf().from(element).set(opt).outputPdf('datauristring').then((dataUri: string) => {
+          document.body.removeChild(element);
+          const base64Str = dataUri.split(',')[1];
+          resolve(base64Str);
+        }).catch((err: any) => {
+          document.body.removeChild(element);
+          reject(err);
+        });
         return;
       }
 
-      const serverHost = Platform.OS === 'web' ? window.location.hostname : 'localhost';
-      const jsPdfUrl = `http://${serverHost}:8001/public/jspdf.umd.min.js`;
-      const autotableUrl = `http://${serverHost}:8001/public/jspdf.plugin.autotable.min.js`;
-
       const script = document.createElement('script');
-      script.src = jsPdfUrl;
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
       script.onload = () => {
-        const scriptAutoTable = document.createElement('script');
-        scriptAutoTable.src = autotableUrl;
-        scriptAutoTable.onload = () => {
-          resolve((window as any).jspdf);
+        const html2pdf = (window as any).html2pdf;
+        const element = document.createElement('div');
+        element.innerHTML = htmlContent;
+        element.style.width = '800px';
+        element.style.padding = '20px';
+        element.style.backgroundColor = '#FFFFFF';
+        document.body.appendChild(element);
+
+        const opt = {
+          margin: 10,
+          filename: 'Consolidated_Report.pdf',
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, logging: false },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
-        scriptAutoTable.onerror = (e) => reject(new Error("Failed to load jsPDF autotable extension. Ensure background service is running."));
-        document.body.appendChild(scriptAutoTable);
+
+        html2pdf().from(element).set(opt).outputPdf('datauristring').then((dataUri: string) => {
+          document.body.removeChild(element);
+          const base64Str = dataUri.split(',')[1];
+          resolve(base64Str);
+        }).catch((err: any) => {
+          document.body.removeChild(element);
+          reject(err);
+        });
       };
-      script.onerror = (e) => reject(new Error("Failed to load jsPDF core library. Ensure background service is running."));
+      script.onerror = (e) => reject(new Error("Failed to load html2pdf script. Ensure you have internet access."));
       document.body.appendChild(script);
     });
   };
 
-  const handleSendEmail = (target: 'reminder' | 'consolidated', arg1?: string, arg2?: string) => {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const dateStr = yesterday.toISOString().split('T')[0];
-
-    if (target === 'consolidated') {
-      setRecipientEmails('');
-      setEmailModalVisible(true);
-      return;
-    } else {
-      const employeeName = arg1 || "";
-      const recipientEmail = arg2 || "";
-      const subject = `REMINDER: Daily Work Report Missing (${dateStr})`;
-      const body = `Hi ${employeeName},\n\nOur records show that you have not submitted your daily work report for yesterday (${dateStr}).\n\nPlease submit your report using the daily task tracker as soon as possible.\n\nBest regards,\nDepartment Head`;
-      
-      const mailtoUrl = `mailto:${recipientEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-      Linking.openURL(mailtoUrl).catch((err) => {
-        console.error("Failed to open email client:", err);
-        Alert.alert("Error", "Could not open your default email app. Please ensure you have an email client configured.");
-      });
-    }
-  };
-
-  const generatePDFBase64 = (jspdfModule: any): string => {
-    const jsPDFConstructor = jspdfModule.jsPDF || (window as any).jspdf?.jsPDF;
-    if (!jsPDFConstructor) {
-      throw new Error("jsPDF constructor not found in global namespace");
-    }
-
-    const doc = new jsPDFConstructor();
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const dateStr = yesterday.toISOString().split('T')[0];
-
-    // Document Header
-    doc.setFontSize(20);
-    doc.setTextColor(30, 58, 138); // Dark blue
-    doc.setFont("helvetica", "bold");
-    doc.text("BARANI REPORTING SYSTEM", 14, 20);
-
-    doc.setFontSize(14);
-    doc.setTextColor(31, 41, 55); // Dark grey
-    doc.text("Consolidated Daily Work Report", 14, 28);
-
-    doc.setFontSize(10);
-    doc.setTextColor(59, 130, 246); // Blue
-    doc.text(`DATE: ${dateStr}`, 150, 20);
-
-    // Meta Section
-    doc.setDrawColor(229, 231, 235); // Light grey
-    doc.line(14, 34, 196, 34);
-
-    doc.setFontSize(10);
-    doc.setTextColor(75, 85, 99); // Grey
-    doc.setFont("helvetica", "bold");
-    doc.text("Department:", 14, 40);
-    doc.setFont("helvetica", "normal");
-    doc.text(user?.department || 'Unknown Department', 40, 40);
-
-    doc.setFont("helvetica", "bold");
-    doc.text("Total Reported:", 110, 40);
-    doc.setFont("helvetica", "normal");
-    doc.text(`${yesterdayReported.length} Employees`, 140, 40);
-
-    doc.setFont("helvetica", "bold");
-    doc.text("Total Hours worked:", 110, 46);
-    doc.setFont("helvetica", "normal");
-    const totalHours = yesterdayReported.reduce((sum, g) => sum + g.reports.reduce((subSum, r) => subSum + parseHours(r.hours_worked), 0), 0);
-    doc.text(`${totalHours.toFixed(1)} hrs`, 150, 46);
-
-    doc.setFont("helvetica", "bold");
-    doc.text("Total Backlog:", 14, 46);
-    doc.setFont("helvetica", "normal");
-    doc.text(`${yesterdayNotReported.length} Employees`, 40, 46);
-
-    doc.line(14, 52, 196, 52);
-
-    // Table Data
-    const tableBody: any[] = [];
-    let sNo = 1;
-    yesterdayReported.forEach((group) => {
-      const empName = group.employee.name;
-      const empId = group.employee.employee_id;
-      group.reports.forEach((r) => {
-        const desc = extractTaskDescription(r.work_description);
-        tableBody.push([
-          sNo++,
-          `${empName}\n(${empId})`,
-          r.task_name,
-          desc,
-          `${r.hours_worked} hrs`
-        ]);
-      });
-    });
-
-    (doc as any).autoTable({
-      startY: 56,
-      head: [['S.No', 'Employee', 'Project', 'Task Description', 'Duration']],
-      body: tableBody,
-      theme: 'grid',
-      headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontStyle: 'bold' },
-      styles: { fontSize: 9, cellPadding: 4, overflow: 'linebreak' },
-      columnStyles: {
-        0: { cellWidth: 10 },
-        1: { cellWidth: 35 },
-        2: { cellWidth: 35 },
-        3: { cellWidth: 'auto' },
-        4: { cellWidth: 20 }
-      }
-    });
-
-    // Signature Box
-    const finalY = (doc as any).lastAutoTable.finalY || 150;
-    doc.line(14, finalY + 30, 64, finalY + 30);
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "bold");
-    doc.text("Prepared By (HOD)", 14, finalY + 35);
-
-    doc.line(146, finalY + 30, 196, finalY + 30);
-    doc.text("Approved By (Principal)", 146, finalY + 35);
-
-    const pdfDataUri = doc.output('datauristring');
-    const base64Str = pdfDataUri.split(',')[1];
-    return base64Str;
-  };
-
-  const sendConsolidatedEmailDirectly = async () => {
-    if (!recipientEmails.trim()) {
-      Alert.alert("Input Error", "Please enter at least one recipient email address.");
-      return;
-    }
-
-    setEmailSending(true);
-    try {
-      const jspdfModule = await loadJsPDFLibrary();
-
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const dateStr = yesterday.toISOString().split('T')[0];
-
-      let tasksText = "";
-      yesterdayReported.forEach((group) => {
-        const emp = group.employee;
-        tasksText += `Employee: ${emp.name} (${emp.employee_id})\n`;
-        group.reports.forEach((r) => {
-          const desc = extractTaskDescription(r.work_description);
-          tasksText += ` - Project: ${r.task_name} | Task: ${desc} | Hours: ${r.hours_worked} hrs\n`;
-        });
-        tasksText += `\n`;
-      });
-
-      const totalHours = yesterdayReported.reduce((sum, g) => sum + g.reports.reduce((subSum, r) => subSum + parseHours(r.hours_worked), 0), 0);
-      const body = `Hi,\n\nHere is the consolidated work report for yesterday (${dateStr}):\n\n${tasksText}Total Hours Worked across Department: ${totalHours.toFixed(1)} hrs\n\nBest regards,\nDepartment Head`;
-
-      const pdfBase64 = generatePDFBase64(jspdfModule);
-
-      const serverHost = Platform.OS === 'web' ? window.location.hostname : 'localhost';
-      const apiUrl = `http://${serverHost}:8001/api/send-consolidated-report`;
-
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          recipients: recipientEmails.split(',').map(e => e.trim()),
-          date: dateStr,
-          pdfBase64,
-          subject: `Yesterday's Consolidated Work Report (${dateStr})`,
-          body
-        })
-      });
-
-      const resData = await response.json();
-
-      if (!response.ok) {
-        throw new Error(resData.error || 'Failed to send email');
-      }
-
-      Alert.alert("Success", "Consolidated PDF report has been emailed directly!");
-      setEmailModalVisible(false);
-      setRecipientEmails('');
-    } catch (error: any) {
-      console.error("Error sending direct email:", error);
-      Alert.alert("Direct Send Failed", error?.message || "Ensure the background service is running on the server laptop and SMTP settings in .env are configured.");
-    } finally {
-      setEmailSending(false);
-    }
-  };
-
-  const handleExportPDF = () => {
+  const generateReportHtml = (): string => {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const dateStr = yesterday.toISOString().split('T')[0];
@@ -455,7 +301,7 @@ export default function ReportsScreen() {
     const totalHours = yesterdayReported.reduce((sum, g) => sum + g.reports.reduce((subSum, r) => subSum + parseHours(r.hours_worked), 0), 0);
     const totalEmployees = yesterdayReported.length;
 
-    const htmlContent = `
+    return `
       <!DOCTYPE html>
       <html>
       <head>
@@ -584,20 +430,111 @@ export default function ReportsScreen() {
           <div class="signature-box">Prepared By (HOD)</div>
           <div class="signature-box">Approved By (Principal)</div>
         </div>
-
-        <script>
-          window.onload = function() {
-            window.print();
-          }
-        </script>
       </body>
       </html>
+    `;
+  };
+
+  const handleSendEmail = (target: 'reminder' | 'consolidated', arg1?: string, arg2?: string) => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const dateStr = yesterday.toISOString().split('T')[0];
+
+    if (target === 'consolidated') {
+      setRecipientEmails('');
+      setEmailModalVisible(true);
+      return;
+    } else {
+      const employeeName = arg1 || "";
+      const recipientEmail = arg2 || "";
+      const subject = `REMINDER: Daily Work Report Missing (${dateStr})`;
+      const body = `Hi ${employeeName},\n\nOur records show that you have not submitted your daily work report for yesterday (${dateStr}).\n\nPlease submit your report using the daily task tracker as soon as possible.\n\nBest regards,\nDepartment Head`;
+      
+      const mailtoUrl = `mailto:${recipientEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      Linking.openURL(mailtoUrl).catch((err) => {
+        console.error("Failed to open email client:", err);
+        Alert.alert("Error", "Could not open your default email app. Please ensure you have an email client configured.");
+      });
+    }
+  };
+
+  const sendConsolidatedEmailDirectly = async () => {
+    if (!recipientEmails.trim()) {
+      Alert.alert("Input Error", "Please enter at least one recipient email address.");
+      return;
+    }
+
+    setEmailSending(true);
+    try {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const dateStr = yesterday.toISOString().split('T')[0];
+
+      let tasksText = "";
+      yesterdayReported.forEach((group) => {
+        const emp = group.employee;
+        tasksText += `Employee: ${emp.name} (${emp.employee_id})\n`;
+        group.reports.forEach((r) => {
+          const desc = extractTaskDescription(r.work_description);
+          tasksText += ` - Project: ${r.task_name} | Task: ${desc} | Hours: ${r.hours_worked} hrs\n`;
+        });
+        tasksText += `\n`;
+      });
+
+      const totalHours = yesterdayReported.reduce((sum, g) => sum + g.reports.reduce((subSum, r) => subSum + parseHours(r.hours_worked), 0), 0);
+      const body = `Hi,\n\nHere is the consolidated work report for yesterday (${dateStr}):\n\n${tasksText}Total Hours Worked across Department: ${totalHours.toFixed(1)} hrs\n\nBest regards,\nDepartment Head`;
+
+      const htmlContent = generateReportHtml();
+      const pdfBase64 = await generatePDFBase64FromHtml(htmlContent);
+
+      const serverHost = Platform.OS === 'web' ? window.location.hostname : 'localhost';
+      const apiUrl = `http://${serverHost}:8001/api/send-consolidated-report`;
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          recipients: recipientEmails.split(',').map(e => e.trim()),
+          date: dateStr,
+          pdfBase64,
+          subject: `Yesterday's Consolidated Work Report (${dateStr})`,
+          body
+        })
+      });
+
+      const resData = await response.json();
+
+      if (!response.ok) {
+        throw new Error(resData.error || 'Failed to send email');
+      }
+
+      Alert.alert("Success", "Consolidated PDF report has been emailed directly!");
+      setEmailModalVisible(false);
+      setRecipientEmails('');
+    } catch (error: any) {
+      console.error("Error sending direct email:", error);
+      Alert.alert("Direct Send Failed", error?.message || "Ensure the background service is running on the server laptop and SMTP settings in .env are configured.");
+    } finally {
+      setEmailSending(false);
+    }
+  };
+
+  const handleExportPDF = () => {
+    const htmlContent = generateReportHtml();
+    const printHtml = htmlContent + `
+      <script>
+        window.onload = function() {
+          window.print();
+        }
+      </script>
     `;
 
     if (Platform.OS === 'web') {
       const printWindow = window.open('', '_blank');
       if (printWindow) {
-        printWindow.document.write(htmlContent);
+        printWindow.document.write(printHtml);
         printWindow.document.close();
       } else {
         Alert.alert("Blocked", "Print window was blocked by your browser. Please allow popups for this site.");
@@ -631,8 +568,8 @@ export default function ReportsScreen() {
     if (!str) return '';
     
     const cleanLine = (line: string): string => {
-      const ampersandCount = (line.match(/&/g) || []).length;
-      if (ampersandCount > 3 && ampersandCount > line.length * 0.2) {
+      const isGarbled = /([a-zA-Z0-9]\s*&\s*){3,}/.test(line) || (line.match(/&/g) || []).length > 5;
+      if (isGarbled) {
         let clean = line.replace(/&/g, '');
         clean = clean.replace(/^%[^a-zA-Z0-9]*/, '');
         clean = clean.replace(/^[^\x20-\x7E]+/, '');
