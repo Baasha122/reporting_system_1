@@ -365,20 +365,6 @@ export default function ReportsScreen() {
             font-size: 13px;
             text-transform: uppercase;
           }
-          .footer-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 50px;
-          }
-          .signature-box {
-            width: 200px;
-            border-top: 1px solid #9CA3AF;
-            text-align: center;
-            padding-top: 8px;
-            font-size: 13px;
-            font-weight: 600;
-            color: #4B5563;
-          }
           @media print {
             body { padding: 0; }
             .no-print { display: none; }
@@ -426,17 +412,6 @@ export default function ReportsScreen() {
           <tbody>
             ${rowsHtml}
           </tbody>
-        </table>
-
-        <table class="footer-table">
-          <tr>
-            <td style="text-align: left; padding: 0; border: none; width: 50%;">
-              <div class="signature-box">Prepared By (HOD)</div>
-            </td>
-            <td style="text-align: right; padding: 0; border: none; width: 50%;">
-              <div class="signature-box" style="margin-left: auto;">Approved By (Principal)</div>
-            </td>
-          </tr>
         </table>
       </body>
       </html>
