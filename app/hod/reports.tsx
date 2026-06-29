@@ -5,6 +5,8 @@ import * as Sharing from 'expo-sharing';
 import React, { useEffect, useState, useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Alert, Platform, Modal, SafeAreaView, TextInput, Pressable, FlatList, useWindowDimensions, Linking } from 'react-native';
 import * as XLSX from 'xlsx-js-style';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
 
 import { Brand } from '@/constants/brand';
 import { fetchReports } from '@/services/reports-api';
@@ -29,6 +31,9 @@ export default function ReportsScreen() {
   const [departmentProjects, setDepartmentProjects] = useState<any[]>([]);
   const [modalPage, setModalPage] = useState(1);
   const [yesterdaySubTab, setYesterdaySubTab] = useState<'reported' | 'not_reported'>('reported');
+  const [emailModalVisible, setEmailModalVisible] = useState(false);
+  const [recipientEmails, setRecipientEmails] = useState('');
+  const [emailSending, setEmailSending] = useState(false);
 
   useEffect(() => {
     setModalPage(1);
@@ -205,23 +210,144 @@ export default function ReportsScreen() {
     return groupedReports.filter(g => g.reports.length === 0);
   }, [groupedReports]);
 
-  const handleSendEmail = (target: 'reminder' | 'consolidated', arg1?: string, arg2?: string, arg3?: DailyReport[]) => {
+  const handleSendEmail = (target: 'reminder' | 'consolidated', arg1?: string, arg2?: string) => {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const dateStr = yesterday.toISOString().split('T')[0];
 
-    let subject = "";
-    let body = "";
-    let recipientEmail = "";
-
     if (target === 'consolidated') {
-      subject = `Yesterday's Consolidated Work Report (${dateStr})`;
+      setRecipientEmails('');
+      setEmailModalVisible(true);
+      return;
+    } else {
+      const employeeName = arg1 || "";
+      const recipientEmail = arg2 || "";
+      const subject = `REMINDER: Daily Work Report Missing (${dateStr})`;
+      const body = `Hi ${employeeName},\n\nOur records show that you have not submitted your daily work report for yesterday (${dateStr}).\n\nPlease submit your report using the daily task tracker as soon as possible.\n\nBest regards,\nDepartment Head`;
       
+      const mailtoUrl = `mailto:${recipientEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      Linking.openURL(mailtoUrl).catch((err) => {
+        console.error("Failed to open email client:", err);
+        Alert.alert("Error", "Could not open your default email app. Please ensure you have an email client configured.");
+      });
+    }
+  };
+
+  const generatePDFBase64 = (): string => {
+    const doc = new jsPDF();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const dateStr = yesterday.toISOString().split('T')[0];
+
+    // Document Header
+    doc.setFontSize(20);
+    doc.setTextColor(30, 58, 138); // Dark blue
+    doc.setFont("helvetica", "bold");
+    doc.text("BARANI REPORTING SYSTEM", 14, 20);
+
+    doc.setFontSize(14);
+    doc.setTextColor(31, 41, 55); // Dark grey
+    doc.text("Consolidated Daily Work Report", 14, 28);
+
+    doc.setFontSize(10);
+    doc.setTextColor(59, 130, 246); // Blue
+    doc.text(`DATE: ${dateStr}`, 150, 20);
+
+    // Meta Section
+    doc.setDrawColor(229, 231, 235); // Light grey
+    doc.line(14, 34, 196, 34);
+
+    doc.setFontSize(10);
+    doc.setTextColor(75, 85, 99); // Grey
+    doc.setFont("helvetica", "bold");
+    doc.text("Department:", 14, 40);
+    doc.setFont("helvetica", "normal");
+    doc.text(user?.department || 'Unknown Department', 40, 40);
+
+    doc.setFont("helvetica", "bold");
+    doc.text("Total Reported:", 110, 40);
+    doc.setFont("helvetica", "normal");
+    doc.text(`${yesterdayReported.length} Employees`, 140, 40);
+
+    doc.setFont("helvetica", "bold");
+    doc.text("Total Hours worked:", 110, 46);
+    doc.setFont("helvetica", "normal");
+    const totalHours = yesterdayReported.reduce((sum, g) => sum + g.reports.reduce((subSum, r) => subSum + parseHours(r.hours_worked), 0), 0);
+    doc.text(`${totalHours.toFixed(1)} hrs`, 150, 46);
+
+    doc.setFont("helvetica", "bold");
+    doc.text("Total Backlog:", 14, 46);
+    doc.setFont("helvetica", "normal");
+    doc.text(`${yesterdayNotReported.length} Employees`, 40, 46);
+
+    doc.line(14, 52, 196, 52);
+
+    // Table Data
+    const tableBody: any[] = [];
+    let sNo = 1;
+    yesterdayReported.forEach((group) => {
+      const empName = group.employee.name;
+      const empId = group.employee.employee_id;
+      group.reports.forEach((r) => {
+        const desc = extractTaskDescription(r.work_description);
+        tableBody.push([
+          sNo++,
+          `${empName}\n(${empId})`,
+          r.task_name,
+          desc,
+          `${r.hours_worked} hrs`
+        ]);
+      });
+    });
+
+    (doc as any).autoTable({
+      startY: 56,
+      head: [['S.No', 'Employee', 'Project', 'Task Description', 'Duration']],
+      body: tableBody,
+      theme: 'grid',
+      headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontStyle: 'bold' },
+      styles: { fontSize: 9, cellPadding: 4, overflow: 'linebreak' },
+      columnStyles: {
+        0: { cellWidth: 10 },
+        1: { cellWidth: 35 },
+        2: { cellWidth: 35 },
+        3: { cellWidth: 'auto' },
+        4: { cellWidth: 20 }
+      }
+    });
+
+    // Signature Box
+    const finalY = (doc as any).lastAutoTable.finalY || 150;
+    doc.line(14, finalY + 30, 64, finalY + 30);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text("Prepared By (HOD)", 14, finalY + 35);
+
+    doc.line(146, finalY + 30, 196, finalY + 30);
+    doc.text("Approved By (Principal)", 146, finalY + 35);
+
+    const pdfDataUri = doc.output('datauristring');
+    const base64Str = pdfDataUri.split(',')[1];
+    return base64Str;
+  };
+
+  const sendConsolidatedEmailDirectly = async () => {
+    if (!recipientEmails.trim()) {
+      Alert.alert("Input Error", "Please enter at least one recipient email address.");
+      return;
+    }
+
+    setEmailSending(true);
+    try {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const dateStr = yesterday.toISOString().split('T')[0];
+
       let tasksText = "";
       yesterdayReported.forEach((group) => {
         const emp = group.employee;
         tasksText += `Employee: ${emp.name} (${emp.employee_id})\n`;
-        group.reports.forEach((r, idx) => {
+        group.reports.forEach((r) => {
           const desc = extractTaskDescription(r.work_description);
           tasksText += ` - Project: ${r.task_name} | Task: ${desc} | Hours: ${r.hours_worked} hrs\n`;
         });
@@ -229,32 +355,41 @@ export default function ReportsScreen() {
       });
 
       const totalHours = yesterdayReported.reduce((sum, g) => sum + g.reports.reduce((subSum, r) => subSum + parseHours(r.hours_worked), 0), 0);
+      const body = `Hi,\n\nHere is the consolidated work report for yesterday (${dateStr}):\n\n${tasksText}Total Hours Worked across Department: ${totalHours.toFixed(1)} hrs\n\nBest regards,\nDepartment Head`;
 
-      body = `Hi,\n\nHere is the consolidated work report for yesterday (${dateStr}):\n\n${tasksText}Total Hours Worked across Department: ${totalHours.toFixed(1)} hrs\n\n(Please find the attached Consolidated PDF report for detailed sign-offs.)\n\nBest regards,\nDepartment Head`;
-      
-      Alert.alert(
-        "PDF Attachment Reminder",
-        "The email draft is being opened. Please remember to manually attach the generated Consolidated PDF to this email before sending.",
-        [{ text: "OK", onPress: () => {
-          const mailtoUrl = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-          Linking.openURL(mailtoUrl).catch((err) => {
-            console.error("Failed to open email client:", err);
-            Alert.alert("Error", "Could not open your default email app. Please ensure you have an email client configured.");
-          });
-        }}]
-      );
-      return;
-    } else {
-      const employeeName = arg1 || "";
-      recipientEmail = arg2 || "";
-      subject = `REMINDER: Daily Work Report Missing (${dateStr})`;
-      body = `Hi ${employeeName},\n\nOur records show that you have not submitted your daily work report for yesterday (${dateStr}).\n\nPlease submit your report using the daily task tracker as soon as possible.\n\nBest regards,\nDepartment Head`;
-      
-      const mailtoUrl = `mailto:${recipientEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-      Linking.openURL(mailtoUrl).catch((err) => {
-        console.error("Failed to open email client:", err);
-        Alert.alert("Error", "Could not open your default email app. Please ensure you have an email client configured.");
+      const pdfBase64 = generatePDFBase64();
+
+      const serverHost = Platform.OS === 'web' ? window.location.hostname : 'localhost';
+      const apiUrl = `http://${serverHost}:8001/api/send-consolidated-report`;
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          recipients: recipientEmails.split(',').map(e => e.trim()),
+          date: dateStr,
+          pdfBase64,
+          subject: `Yesterday's Consolidated Work Report (${dateStr})`,
+          body
+        })
       });
+
+      const resData = await response.json();
+
+      if (!response.ok) {
+        throw new Error(resData.error || 'Failed to send email');
+      }
+
+      Alert.alert("Success", "Consolidated PDF report has been emailed directly!");
+      setEmailModalVisible(false);
+      setRecipientEmails('');
+    } catch (error: any) {
+      console.error("Error sending direct email:", error);
+      Alert.alert("Direct Send Failed", error?.message || "Ensure the background service is running on the server laptop and SMTP settings in .env are configured.");
+    } finally {
+      setEmailSending(false);
     }
   };
 
@@ -1272,6 +1407,79 @@ export default function ReportsScreen() {
                   </TouchableOpacity>
                 </View>
               )}
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Recipient Email Input Modal */}
+      <Modal
+        visible={emailModalVisible}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => {
+          if (!emailSending) setEmailModalVisible(false);
+        }}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <View style={{ backgroundColor: '#FFF', padding: 24, borderRadius: 12, width: '100%', maxWidth: 450, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 4 }}>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: Brand.colors.text, marginBottom: 8 }}>Send Consolidated Email</Text>
+            <Text style={{ fontSize: 13, color: Brand.colors.textSecondary, marginBottom: 20 }}>
+              Enter receiver email addresses (use commas to separate multiple emails). The consolidated PDF will be generated and attached automatically.
+            </Text>
+
+            <TextInput
+              style={{
+                borderWidth: 1,
+                borderColor: Brand.colors.border,
+                borderRadius: 8,
+                padding: 12,
+                fontSize: 14,
+                color: Brand.colors.text,
+                backgroundColor: '#F9FAFB',
+                minHeight: 80,
+                textAlignVertical: 'top',
+                marginBottom: 20,
+              }}
+              placeholder="e.g. principal@barani.com, admin@barani.com"
+              placeholderTextColor={Brand.colors.textSecondary}
+              multiline={true}
+              value={recipientEmails}
+              onChangeText={setRecipientEmails}
+              editable={!emailSending}
+            />
+
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12 }}>
+              <Pressable
+                style={({ hovered }) => [
+                  { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 6, justifyContent: 'center' },
+                  hovered && { backgroundColor: '#F3F4F6' }
+                ] as any}
+                onPress={() => setEmailModalVisible(false)}
+                disabled={emailSending}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '600', color: Brand.colors.textSecondary }}>Cancel</Text>
+              </Pressable>
+
+              <Pressable
+                style={({ hovered, pressed }) => [
+                  { backgroundColor: Brand.colors.primary, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 6, flexDirection: 'row', alignItems: 'center', gap: 8 },
+                  hovered && { backgroundColor: Brand.colors.primaryDark || '#0041CC' },
+                  pressed && { opacity: 0.7 },
+                  emailSending && { opacity: 0.6 }
+                ] as any}
+                onPress={sendConsolidatedEmailDirectly}
+                disabled={emailSending}
+              >
+                {emailSending ? (
+                  <ActivityIndicator size="small" color="#FFF" />
+                ) : (
+                  <Ionicons name="send-outline" size={14} color="#FFF" />
+                )}
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#FFF' }}>
+                  {emailSending ? 'Sending...' : 'Send'}
+                </Text>
+              </Pressable>
             </View>
           </View>
         </View>

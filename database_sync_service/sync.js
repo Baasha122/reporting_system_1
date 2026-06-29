@@ -217,6 +217,72 @@ async function runSync() {
 
 // Periodic execution or manual single run
 if (require.main === module) {
+  const express = require('express');
+  const cors = require('cors');
+  const nodemailer = require('nodemailer');
+
+  const app = express();
+  app.use(cors());
+  app.use(express.json({ limit: '50mb' }));
+
+  app.post('/api/send-consolidated-report', async (req, res) => {
+    const { recipients, date, pdfBase64, subject, body } = req.body;
+
+    if (!recipients || !pdfBase64) {
+      return res.status(400).json({ error: 'Recipients list and PDF data are required.' });
+    }
+
+    const smtpHost = process.env.SMTP_HOST;
+    const smtpPort = process.env.SMTP_PORT || '587';
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASSWORD;
+
+    if (!smtpHost || !smtpUser || !smtpPass) {
+      log('SMTP Configuration is missing in .env');
+      return res.status(500).json({ error: 'SMTP configuration is not set up on this server laptop. Please add SMTP details to .env' });
+    }
+
+    try {
+      const transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: parseInt(smtpPort, 10),
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: {
+          user: smtpUser,
+          pass: smtpPass
+        }
+      });
+
+      const mailOptions = {
+        from: smtpUser,
+        to: Array.isArray(recipients) ? recipients.join(', ') : recipients,
+        subject: subject || `Yesterday's Consolidated Work Report (${date || new Date().toISOString().split('T')[0]})`,
+        text: body || `Please find yesterday's daily consolidated task report attached as a PDF file.`,
+        attachments: [
+          {
+            filename: `Consolidated_Daily_Report_${date || new Date().toISOString().split('T')[0]}.pdf`,
+            content: pdfBase64,
+            encoding: 'base64'
+          }
+        ]
+      };
+
+      log(`Sending consolidated email to ${mailOptions.to}...`);
+      await transporter.sendMail(mailOptions);
+      log('Consolidated report email sent successfully!');
+
+      return res.status(200).json({ success: true, message: 'Email sent successfully!' });
+    } catch (mailError) {
+      log(`Failed to send email: ${mailError.message}`);
+      return res.status(500).json({ error: `Failed to send email: ${mailError.message}` });
+    }
+  });
+
+  const apiPort = 8001;
+  app.listen(apiPort, '0.0.0.0', () => {
+    log(`Local API Server listening on port ${apiPort} (supporting direct emailing)`);
+  });
+
   const intervalHours = parseFloat(process.env.SYNC_INTERVAL_HOURS || '24');
   
   // Initial run
