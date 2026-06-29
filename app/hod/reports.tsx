@@ -3,7 +3,7 @@ import { Picker } from '@react-native-picker/picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import React, { useEffect, useState, useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Alert, Platform, Modal, SafeAreaView, TextInput, Pressable, FlatList, useWindowDimensions } from 'react-native';
+import { ScrollView, StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Alert, Platform, Modal, SafeAreaView, TextInput, Pressable, FlatList, useWindowDimensions, Linking } from 'react-native';
 import * as XLSX from 'xlsx-js-style';
 
 import { Brand } from '@/constants/brand';
@@ -28,6 +28,7 @@ export default function ReportsScreen() {
   const [departmentEmployees, setDepartmentEmployees] = useState<any[]>([]);
   const [departmentProjects, setDepartmentProjects] = useState<any[]>([]);
   const [modalPage, setModalPage] = useState(1);
+  const [yesterdaySubTab, setYesterdaySubTab] = useState<'reported' | 'not_reported'>('reported');
 
   useEffect(() => {
     setModalPage(1);
@@ -63,7 +64,12 @@ export default function ReportsScreen() {
       // 2. Fetch the reports
       let fetchParams: any = undefined;
       const today = new Date();
-      if (filter === 'weekly') {
+      if (filter === 'yesterday') {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = yesterday.toISOString().split('T')[0];
+        fetchParams = { dateFrom: yesterdayStr, dateTo: yesterdayStr };
+      } else if (filter === 'weekly') {
         const lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
         fetchParams = { dateFrom: lastWeek.toISOString().split('T')[0] };
       } else if (filter === 'monthly') {
@@ -190,6 +196,218 @@ export default function ReportsScreen() {
 
     return Object.values(groups).sort((a, b) => a.employee.name.localeCompare(b.employee.name));
   }, [filteredReportsForDisplay, departmentEmployees, filter, reportType, selectedEmployeeId]);
+
+  const yesterdayReported = useMemo(() => {
+    return groupedReports.filter(g => g.reports.length > 0);
+  }, [groupedReports]);
+
+  const yesterdayNotReported = useMemo(() => {
+    return groupedReports.filter(g => g.reports.length === 0);
+  }, [groupedReports]);
+
+  const handleSendEmail = (employeeName: string, employeeEmail: string, reportsList?: DailyReport[]) => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const dateStr = yesterday.toISOString().split('T')[0];
+
+    let subject = "";
+    let body = "";
+
+    if (reportsList && reportsList.length > 0) {
+      subject = `Daily Work Report - ${employeeName} (${dateStr})`;
+      
+      let tasksText = "";
+      reportsList.forEach((r, idx) => {
+        const desc = extractTaskDescription(r.work_description);
+        tasksText += `${idx + 1}. Project: ${r.task_name}\n   Task: ${desc}\n   Hours Worked: ${r.hours_worked} hrs\n\n`;
+      });
+
+      body = `Hi,\n\nHere is the daily work report for ${employeeName} on ${dateStr}:\n\n${tasksText}Best regards,\nDepartment Head`;
+    } else {
+      subject = `REMINDER: Daily Work Report Missing (${dateStr})`;
+      body = `Hi ${employeeName},\n\nOur records show that you have not submitted your daily work report for yesterday (${dateStr}).\n\nPlease submit your report using the daily task tracker as soon as possible.\n\nBest regards,\nDepartment Head`;
+    }
+
+    const mailtoUrl = `mailto:${employeeEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    
+    Linking.openURL(mailtoUrl).catch((err) => {
+      console.error("Failed to open email client:", err);
+      Alert.alert("Error", "Could not open your default email app. Please ensure you have an email client configured.");
+    });
+  };
+
+  const handleExportPDF = (employee: any, reportsList: DailyReport[]) => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const dateStr = yesterday.toISOString().split('T')[0];
+
+    const title = `Daily_Report_${employee.employee_id || 'Emp'}_${dateStr}`;
+
+    let rowsHtml = "";
+    reportsList.forEach((r, idx) => {
+      const desc = extractTaskDescription(r.work_description);
+      rowsHtml += `
+        <tr style="border-bottom: 1px solid #E5E7EB;">
+          <td style="padding: 12px; text-align: center;">${idx + 1}</td>
+          <td style="padding: 12px; font-weight: 600;">${r.task_name}</td>
+          <td style="padding: 12px; text-align: left; white-space: pre-wrap;">${desc}</td>
+          <td style="padding: 12px; text-align: center;">${r.hours_worked} hrs</td>
+        </tr>
+      `;
+    });
+
+    const totalHours = reportsList.reduce((sum, r) => sum + parseHours(r.hours_worked), 0);
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${title}</title>
+        <meta charset="utf-8">
+        <style>
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: #1F2937;
+            padding: 40px;
+            background-color: #FFFFFF;
+          }
+          .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #3B82F6;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+          }
+          .college-title {
+            font-size: 20px;
+            font-weight: 800;
+            color: #1E3A8A;
+            margin: 0;
+          }
+          .report-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1F2937;
+            margin-top: 5px;
+          }
+          .meta-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+          }
+          .meta-table td {
+            padding: 8px 12px;
+            border: 1px solid #E5E7EB;
+            font-size: 14px;
+          }
+          .meta-label {
+            font-weight: 700;
+            background-color: #F9FAFB;
+            width: 20%;
+          }
+          .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 40px;
+          }
+          .data-table th {
+            background-color: #3B82F6;
+            color: #FFFFFF;
+            padding: 12px;
+            font-weight: 700;
+            font-size: 13px;
+            text-transform: uppercase;
+          }
+          .data-table td {
+            font-size: 14px;
+          }
+          .footer-section {
+            margin-top: 60px;
+            display: flex;
+            justify-content: space-between;
+          }
+          .signature-box {
+            width: 200px;
+            border-top: 1px solid #9CA3AF;
+            text-align: center;
+            padding-top: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #4B5563;
+          }
+          @media print {
+            body { padding: 0; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <h1 class="college-title">BARANI REPORTING SYSTEM</h1>
+            <div class="report-title">Daily Work Report</div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 14px; font-weight: 700; color: #3B82F6;">DATE: ${dateStr}</div>
+          </div>
+        </div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="meta-label">Employee Name</td>
+            <td>${employee.name}</td>
+            <td class="meta-label">Employee ID</td>
+            <td>${employee.employee_id}</td>
+          </tr>
+          <tr>
+            <td class="meta-label">Department</td>
+            <td>${employee.department}</td>
+            <td class="meta-label">Total Hours</td>
+            <td style="font-weight: 700;">${totalHours.toFixed(1)} hrs</td>
+          </tr>
+        </table>
+
+        <table class="data-table" border="1" borderColor="#E5E7EB">
+          <thead>
+            <tr>
+              <th style="width: 8%;">S.No</th>
+              <th style="width: 25%;">Project</th>
+              <th>Task Description</th>
+              <th style="width: 15%;">Duration</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+
+        <div class="footer-section">
+          <div class="signature-box">Employee Signature</div>
+          <div class="signature-box">HOD Signature</div>
+        </div>
+
+        <script>
+          window.onload = function() {
+            window.print();
+          }
+        </script>
+      </body>
+      </html>
+    `;
+
+    if (Platform.OS === 'web') {
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+      } else {
+        Alert.alert("Blocked", "Print window was blocked by your browser. Please allow popups for this site.");
+      }
+    } else {
+      Alert.alert("Web Only", "PDF printing is supported directly on Web browser. For mobile devices, please export to Excel.");
+    }
+  };
 
   const groupedEmployeeTasks = useMemo(() => {
     if (!selectedEmployeeDetails) return [];
@@ -458,6 +676,7 @@ export default function ReportsScreen() {
         <View style={styles.headerActions}>
           <View style={styles.filtersInline}>
             {renderFilter('all', 'All')}
+            {renderFilter('yesterday', 'Yesterday')}
             {renderFilter('reports', 'Reports')}
             {renderFilter('weekly', 'Weekly')}
             {renderFilter('monthly', 'Monthly')}
@@ -660,6 +879,159 @@ export default function ReportsScreen() {
             </View>
           )}
         </ScrollView>
+      ) : filter === 'yesterday' ? (
+        <View style={{ flex: 1 }}>
+          <View style={styles.yesterdayTabs}>
+            <Pressable
+              style={({ hovered }) => [
+                styles.yesterdayTab,
+                yesterdaySubTab === 'reported' && styles.yesterdayTabActive,
+                hovered && { backgroundColor: '#F3F4F6' }
+              ] as any}
+              onPress={() => setYesterdaySubTab('reported')}
+            >
+              <Text style={[styles.yesterdayTabText, yesterdaySubTab === 'reported' && styles.yesterdayTabTextActive]}>
+                Reported ({yesterdayReported.length})
+              </Text>
+            </Pressable>
+            <Pressable
+              style={({ hovered }) => [
+                styles.yesterdayTab,
+                yesterdaySubTab === 'not_reported' && styles.yesterdayTabActive,
+                hovered && { backgroundColor: '#F3F4F6' }
+              ] as any}
+              onPress={() => setYesterdaySubTab('not_reported')}
+            >
+              <Text style={[styles.yesterdayTabText, yesterdaySubTab === 'not_reported' && styles.yesterdayTabTextActive]}>
+                Not Reported ({yesterdayNotReported.length})
+              </Text>
+            </Pressable>
+          </View>
+
+          {yesterdaySubTab === 'reported' ? (
+            <FlatList
+              key={numColumns}
+              numColumns={numColumns}
+              columnWrapperStyle={numColumns > 1 ? styles.rowWrapper : undefined}
+              data={yesterdayReported}
+              keyExtractor={(item) => item.employee.id}
+              contentContainerStyle={styles.gridContainer}
+              ListEmptyComponent={
+                <Text style={styles.emptyText}>No reports submitted yesterday.</Text>
+              }
+              renderItem={({ item: group }) => {
+                const emp = group.employee;
+                const totalHours = group.reports.reduce((sum, r) => sum + parseHours(r.hours_worked), 0);
+
+                return (
+                  <View key={emp.id} style={[styles.card, { minHeight: 250 }]}>
+                    <View style={styles.cardHeader}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.cardEmpName} numberOfLines={1}>{emp.name}</Text>
+                        <Text style={styles.cardEmpId}>{emp.employee_id} • {emp.department}</Text>
+                      </View>
+                      <View style={[styles.statusBadge, { backgroundColor: Brand.colors.success + '20' }]}>
+                        <Text style={[styles.statusText, { color: Brand.colors.success }]}>
+                          REPORTED
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.cardBody}>
+                      <Text style={[styles.cardLabel, { marginBottom: 6 }]}>Submitted Reports:</Text>
+                      {group.reports.map((r, idx) => (
+                        <View key={r.id || idx} style={{ borderBottomWidth: idx < group.reports.length - 1 ? 1 : 0, borderBottomColor: '#F3F4F6', paddingVertical: 6 }}>
+                          <Text style={{ fontSize: 14, fontWeight: '600', color: Brand.colors.text }}>{r.task_name}</Text>
+                          <Text style={{ fontSize: 13, color: Brand.colors.textSecondary, marginTop: 2 }} numberOfLines={2}>
+                            {extractTaskDescription(r.work_description)}
+                          </Text>
+                          <Text style={{ fontSize: 12, fontWeight: '700', color: Brand.colors.textSecondary, marginTop: 4 }}>
+                            Hours Worked: {r.hours_worked} hrs
+                          </Text>
+                        </View>
+                      ))}
+                      <View style={[styles.fieldRow, { marginTop: 12, borderTopWidth: 1, borderTopColor: Brand.colors.border, paddingTop: 8 }]}>
+                        <Text style={styles.cardLabel}>Total Hours Worked:</Text>
+                        <Text style={styles.cardValue}>{totalHours.toFixed(1)} hrs</Text>
+                      </View>
+                    </View>
+
+                    <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+                      <Pressable
+                        style={({ hovered, pressed }) => [
+                          styles.actionBtn,
+                          styles.emailBtn,
+                          hovered && styles.emailBtnHovered,
+                          pressed && { opacity: 0.7 }
+                        ] as any}
+                        onPress={() => handleSendEmail(emp.name, emp.email, group.reports)}
+                      >
+                        <Ionicons name="mail-outline" size={14} color="#FFF" />
+                        <Text style={styles.actionBtnText}>Email</Text>
+                      </Pressable>
+                      <Pressable
+                        style={({ hovered, pressed }) => [
+                          styles.actionBtn,
+                          styles.pdfBtn,
+                          hovered && styles.pdfBtnHovered,
+                          pressed && { opacity: 0.7 }
+                        ] as any}
+                        onPress={() => handleExportPDF(emp, group.reports)}
+                      >
+                        <Ionicons name="document-text-outline" size={14} color="#FFF" />
+                        <Text style={styles.actionBtnText}>Export PDF</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                );
+              }}
+            />
+          ) : (
+            <FlatList
+              key={1}
+              numColumns={1}
+              data={yesterdayNotReported}
+              keyExtractor={(item) => item.employee.id}
+              contentContainerStyle={styles.gridContainer}
+              ListEmptyComponent={
+                <Text style={styles.emptyText}>All employees submitted their reports yesterday.</Text>
+              }
+              renderItem={({ item: group }) => {
+                const emp = group.employee;
+
+                return (
+                  <View key={emp.id} style={[styles.card, { minHeight: 'auto', paddingVertical: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+                    <View>
+                      <Text style={styles.cardEmpName}>{emp.name}</Text>
+                      <Text style={styles.cardEmpId}>{emp.employee_id} • {emp.email || 'No email registered'}</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                      <View style={[styles.statusBadge, { backgroundColor: Brand.colors.error + '20', marginRight: 8 }]}>
+                        <Text style={[styles.statusText, { color: Brand.colors.error }]}>
+                          NOT REPORTED
+                        </Text>
+                      </View>
+                      {emp.email ? (
+                        <Pressable
+                          style={({ hovered, pressed }) => [
+                            styles.actionBtn,
+                            styles.emailBtn,
+                            hovered && styles.emailBtnHovered,
+                            pressed && { opacity: 0.7 }
+                          ] as any}
+                          onPress={() => handleSendEmail(emp.name, emp.email)}
+                        >
+                          <Ionicons name="mail-outline" size={14} color="#FFF" />
+                          <Text style={styles.actionBtnText}>Send Reminder</Text>
+                        </Pressable>
+                      ) : null}
+                    </View>
+                  </View>
+                );
+              }}
+            />
+          )}
+        </View>
       ) : (
         <FlatList
           key={numColumns}
@@ -1304,5 +1676,57 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: Brand.colors.textSecondary,
+  },
+  yesterdayTabs: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: Brand.colors.border,
+    paddingBottom: 8,
+  },
+  yesterdayTab: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    backgroundColor: 'transparent',
+  },
+  yesterdayTabActive: {
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#3B82F6',
+  },
+  yesterdayTabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Brand.colors.textSecondary,
+  },
+  yesterdayTabTextActive: {
+    color: '#1D4ED8',
+  },
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    gap: 6,
+  },
+  emailBtn: {
+    backgroundColor: '#3B82F6',
+  },
+  emailBtnHovered: {
+    backgroundColor: '#2563EB',
+  },
+  pdfBtn: {
+    backgroundColor: '#10B981',
+  },
+  pdfBtnHovered: {
+    backgroundColor: '#059669',
+  },
+  actionBtnText: {
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: '600',
   },
 });
