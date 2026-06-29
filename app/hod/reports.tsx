@@ -205,58 +205,88 @@ export default function ReportsScreen() {
     return groupedReports.filter(g => g.reports.length === 0);
   }, [groupedReports]);
 
-  const handleSendEmail = (employeeName: string, employeeEmail: string, reportsList?: DailyReport[]) => {
+  const handleSendEmail = (target: 'reminder' | 'consolidated', arg1?: string, arg2?: string, arg3?: DailyReport[]) => {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const dateStr = yesterday.toISOString().split('T')[0];
 
     let subject = "";
     let body = "";
+    let recipientEmail = "";
 
-    if (reportsList && reportsList.length > 0) {
-      subject = `Daily Work Report - ${employeeName} (${dateStr})`;
+    if (target === 'consolidated') {
+      subject = `Yesterday's Consolidated Work Report (${dateStr})`;
       
       let tasksText = "";
-      reportsList.forEach((r, idx) => {
-        const desc = extractTaskDescription(r.work_description);
-        tasksText += `${idx + 1}. Project: ${r.task_name}\n   Task: ${desc}\n   Hours Worked: ${r.hours_worked} hrs\n\n`;
+      yesterdayReported.forEach((group) => {
+        const emp = group.employee;
+        tasksText += `Employee: ${emp.name} (${emp.employee_id})\n`;
+        group.reports.forEach((r, idx) => {
+          const desc = extractTaskDescription(r.work_description);
+          tasksText += ` - Project: ${r.task_name} | Task: ${desc} | Hours: ${r.hours_worked} hrs\n`;
+        });
+        tasksText += `\n`;
       });
 
-      body = `Hi,\n\nHere is the daily work report for ${employeeName} on ${dateStr}:\n\n${tasksText}Best regards,\nDepartment Head`;
+      const totalHours = yesterdayReported.reduce((sum, g) => sum + g.reports.reduce((subSum, r) => subSum + parseHours(r.hours_worked), 0), 0);
+
+      body = `Hi,\n\nHere is the consolidated work report for yesterday (${dateStr}):\n\n${tasksText}Total Hours Worked across Department: ${totalHours.toFixed(1)} hrs\n\n(Please find the attached Consolidated PDF report for detailed sign-offs.)\n\nBest regards,\nDepartment Head`;
+      
+      Alert.alert(
+        "PDF Attachment Reminder",
+        "The email draft is being opened. Please remember to manually attach the generated Consolidated PDF to this email before sending.",
+        [{ text: "OK", onPress: () => {
+          const mailtoUrl = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+          Linking.openURL(mailtoUrl).catch((err) => {
+            console.error("Failed to open email client:", err);
+            Alert.alert("Error", "Could not open your default email app. Please ensure you have an email client configured.");
+          });
+        }}]
+      );
+      return;
     } else {
+      const employeeName = arg1 || "";
+      recipientEmail = arg2 || "";
       subject = `REMINDER: Daily Work Report Missing (${dateStr})`;
       body = `Hi ${employeeName},\n\nOur records show that you have not submitted your daily work report for yesterday (${dateStr}).\n\nPlease submit your report using the daily task tracker as soon as possible.\n\nBest regards,\nDepartment Head`;
+      
+      const mailtoUrl = `mailto:${recipientEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      Linking.openURL(mailtoUrl).catch((err) => {
+        console.error("Failed to open email client:", err);
+        Alert.alert("Error", "Could not open your default email app. Please ensure you have an email client configured.");
+      });
     }
-
-    const mailtoUrl = `mailto:${employeeEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    
-    Linking.openURL(mailtoUrl).catch((err) => {
-      console.error("Failed to open email client:", err);
-      Alert.alert("Error", "Could not open your default email app. Please ensure you have an email client configured.");
-    });
   };
 
-  const handleExportPDF = (employee: any, reportsList: DailyReport[]) => {
+  const handleExportPDF = () => {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const dateStr = yesterday.toISOString().split('T')[0];
 
-    const title = `Daily_Report_${employee.employee_id || 'Emp'}_${dateStr}`;
+    const title = `Consolidated_Daily_Report_${dateStr}`;
 
     let rowsHtml = "";
-    reportsList.forEach((r, idx) => {
-      const desc = extractTaskDescription(r.work_description);
-      rowsHtml += `
-        <tr style="border-bottom: 1px solid #E5E7EB;">
-          <td style="padding: 12px; text-align: center;">${idx + 1}</td>
-          <td style="padding: 12px; font-weight: 600;">${r.task_name}</td>
-          <td style="padding: 12px; text-align: left; white-space: pre-wrap;">${desc}</td>
-          <td style="padding: 12px; text-align: center;">${r.hours_worked} hrs</td>
-        </tr>
-      `;
+    let sNo = 1;
+    yesterdayReported.forEach((group) => {
+      const empName = group.employee.name;
+      const empId = group.employee.employee_id;
+      
+      group.reports.forEach((r) => {
+        const desc = extractTaskDescription(r.work_description);
+        rowsHtml += `
+          <tr style="border-bottom: 1px solid #E5E7EB;">
+            <td style="padding: 12px; text-align: center;">${sNo++}</td>
+            <td style="padding: 12px; font-weight: 600;">${empName}<br><span style="font-size: 11px; font-weight: 400; color: #6B7280;">${empId}</span></td>
+            <td style="padding: 12px; font-weight: 600;">${r.task_name}</td>
+            <td style="padding: 12px; text-align: left; white-space: pre-wrap;">${desc}</td>
+            <td style="padding: 12px; text-align: center; font-weight: 700;">${r.hours_worked} hrs</td>
+          </tr>
+        `;
+      });
     });
 
-    const totalHours = reportsList.reduce((sum, r) => sum + parseHours(r.hours_worked), 0);
+    const totalHours = yesterdayReported.reduce((sum, g) => sum + g.reports.reduce((subSum, r) => subSum + parseHours(r.hours_worked), 0), 0);
+    const totalEmployees = yesterdayReported.length;
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -304,7 +334,7 @@ export default function ReportsScreen() {
           .meta-label {
             font-weight: 700;
             background-color: #F9FAFB;
-            width: 20%;
+            width: 25%;
           }
           .data-table {
             width: 100%;
@@ -346,7 +376,7 @@ export default function ReportsScreen() {
         <div class="header">
           <div>
             <h1 class="college-title">BARANI REPORTING SYSTEM</h1>
-            <div class="report-title">Daily Work Report</div>
+            <div class="report-title">Consolidated Daily Work Report</div>
           </div>
           <div style="text-align: right;">
             <div style="font-size: 14px; font-weight: 700; color: #3B82F6;">DATE: ${dateStr}</div>
@@ -355,15 +385,15 @@ export default function ReportsScreen() {
 
         <table class="meta-table">
           <tr>
-            <td class="meta-label">Employee Name</td>
-            <td>${employee.name}</td>
-            <td class="meta-label">Employee ID</td>
-            <td>${employee.employee_id}</td>
+            <td class="meta-label">Department</td>
+            <td>${user?.department || 'Unknown Department'}</td>
+            <td class="meta-label">Total Reported Employees</td>
+            <td>${totalEmployees}</td>
           </tr>
           <tr>
-            <td class="meta-label">Department</td>
-            <td>${employee.department}</td>
-            <td class="meta-label">Total Hours</td>
+            <td class="meta-label">Total Backlogged Employees</td>
+            <td>${yesterdayNotReported.length}</td>
+            <td class="meta-label">Total Backlog/Hours Worked</td>
             <td style="font-weight: 700;">${totalHours.toFixed(1)} hrs</td>
           </tr>
         </table>
@@ -371,10 +401,11 @@ export default function ReportsScreen() {
         <table class="data-table" border="1" borderColor="#E5E7EB">
           <thead>
             <tr>
-              <th style="width: 8%;">S.No</th>
-              <th style="width: 25%;">Project</th>
+              <th style="width: 6%;">S.No</th>
+              <th style="width: 20%;">Employee</th>
+              <th style="width: 20%;">Project</th>
               <th>Task Description</th>
-              <th style="width: 15%;">Duration</th>
+              <th style="width: 12%;">Duration</th>
             </tr>
           </thead>
           <tbody>
@@ -383,8 +414,8 @@ export default function ReportsScreen() {
         </table>
 
         <div class="footer-section">
-          <div class="signature-box">Employee Signature</div>
-          <div class="signature-box">HOD Signature</div>
+          <div class="signature-box">Prepared By (HOD)</div>
+          <div class="signature-box">Approved By (Principal)</div>
         </div>
 
         <script>
@@ -909,83 +940,89 @@ export default function ReportsScreen() {
           </View>
 
           {yesterdaySubTab === 'reported' ? (
-            <FlatList
-              key={numColumns}
-              numColumns={numColumns}
-              columnWrapperStyle={numColumns > 1 ? styles.rowWrapper : undefined}
-              data={yesterdayReported}
-              keyExtractor={(item) => item.employee.id}
-              contentContainerStyle={styles.gridContainer}
-              ListEmptyComponent={
-                <Text style={styles.emptyText}>No reports submitted yesterday.</Text>
-              }
-              renderItem={({ item: group }) => {
-                const emp = group.employee;
-                const totalHours = group.reports.reduce((sum, r) => sum + parseHours(r.hours_worked), 0);
+            <View style={{ flex: 1 }}>
+              {/* Consolidated Action Panel */}
+              <View style={styles.consolidatedActionRow}>
+                <Text style={styles.consolidatedActionText}>Consolidated Actions:</Text>
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <Pressable
+                    style={({ hovered, pressed }) => [
+                      styles.actionBtn,
+                      styles.emailBtn,
+                      hovered && styles.emailBtnHovered,
+                      pressed && { opacity: 0.7 }
+                    ] as any}
+                    onPress={() => handleSendEmail('consolidated')}
+                  >
+                    <Ionicons name="mail-outline" size={14} color="#FFF" />
+                    <Text style={styles.actionBtnText}>Consolidated Email</Text>
+                  </Pressable>
+                  <Pressable
+                    style={({ hovered, pressed }) => [
+                      styles.actionBtn,
+                      styles.pdfBtn,
+                      hovered && styles.pdfBtnHovered,
+                      pressed && { opacity: 0.7 }
+                    ] as any}
+                    onPress={handleExportPDF}
+                  >
+                    <Ionicons name="document-text-outline" size={14} color="#FFF" />
+                    <Text style={styles.actionBtnText}>Export Consolidated PDF</Text>
+                  </Pressable>
+                </View>
+              </View>
 
-                return (
-                  <View key={emp.id} style={[styles.card, { minHeight: 250 }]}>
-                    <View style={styles.cardHeader}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.cardEmpName} numberOfLines={1}>{emp.name}</Text>
-                        <Text style={styles.cardEmpId}>{emp.employee_id} • {emp.department}</Text>
-                      </View>
-                      <View style={[styles.statusBadge, { backgroundColor: Brand.colors.success + '20' }]}>
-                        <Text style={[styles.statusText, { color: Brand.colors.success }]}>
-                          REPORTED
-                        </Text>
-                      </View>
-                    </View>
+              <FlatList
+                key={numColumns}
+                numColumns={numColumns}
+                columnWrapperStyle={numColumns > 1 ? styles.rowWrapper : undefined}
+                data={yesterdayReported}
+                keyExtractor={(item) => item.employee.id}
+                contentContainerStyle={styles.gridContainer}
+                ListEmptyComponent={
+                  <Text style={styles.emptyText}>No reports submitted yesterday.</Text>
+                }
+                renderItem={({ item: group }) => {
+                  const emp = group.employee;
+                  const totalHours = group.reports.reduce((sum, r) => sum + parseHours(r.hours_worked), 0);
 
-                    <View style={styles.cardBody}>
-                      <Text style={[styles.cardLabel, { marginBottom: 6 }]}>Submitted Reports:</Text>
-                      {group.reports.map((r, idx) => (
-                        <View key={r.id || idx} style={{ borderBottomWidth: idx < group.reports.length - 1 ? 1 : 0, borderBottomColor: '#F3F4F6', paddingVertical: 6 }}>
-                          <Text style={{ fontSize: 14, fontWeight: '600', color: Brand.colors.text }}>{r.task_name}</Text>
-                          <Text style={{ fontSize: 13, color: Brand.colors.textSecondary, marginTop: 2 }} numberOfLines={2}>
-                            {extractTaskDescription(r.work_description)}
-                          </Text>
-                          <Text style={{ fontSize: 12, fontWeight: '700', color: Brand.colors.textSecondary, marginTop: 4 }}>
-                            Hours Worked: {r.hours_worked} hrs
+                  return (
+                    <View key={emp.id} style={[styles.card, { minHeight: 200 }]}>
+                      <View style={styles.cardHeader}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.cardEmpName} numberOfLines={1}>{emp.name}</Text>
+                          <Text style={styles.cardEmpId}>{emp.employee_id} • {emp.department}</Text>
+                        </View>
+                        <View style={[styles.statusBadge, { backgroundColor: Brand.colors.success + '20' }]}>
+                          <Text style={[styles.statusText, { color: Brand.colors.success }]}>
+                            REPORTED
                           </Text>
                         </View>
-                      ))}
-                      <View style={[styles.fieldRow, { marginTop: 12, borderTopWidth: 1, borderTopColor: Brand.colors.border, paddingTop: 8 }]}>
-                        <Text style={styles.cardLabel}>Total Hours Worked:</Text>
-                        <Text style={styles.cardValue}>{totalHours.toFixed(1)} hrs</Text>
+                      </View>
+
+                      <View style={styles.cardBody}>
+                        <Text style={[styles.cardLabel, { marginBottom: 6 }]}>Submitted Reports:</Text>
+                        {group.reports.map((r, idx) => (
+                          <View key={r.id || idx} style={{ borderBottomWidth: idx < group.reports.length - 1 ? 1 : 0, borderBottomColor: '#F3F4F6', paddingVertical: 6 }}>
+                            <Text style={{ fontSize: 14, fontWeight: '600', color: Brand.colors.text }}>{r.task_name}</Text>
+                            <Text style={{ fontSize: 13, color: Brand.colors.textSecondary, marginTop: 2 }} numberOfLines={2}>
+                              {extractTaskDescription(r.work_description)}
+                            </Text>
+                            <Text style={{ fontSize: 12, fontWeight: '700', color: Brand.colors.textSecondary, marginTop: 4 }}>
+                              Hours Worked: {r.hours_worked} hrs
+                            </Text>
+                          </View>
+                        ))}
+                        <View style={[styles.fieldRow, { marginTop: 12, borderTopWidth: 1, borderTopColor: Brand.colors.border, paddingTop: 8 }]}>
+                          <Text style={styles.cardLabel}>Total Hours Worked:</Text>
+                          <Text style={styles.cardValue}>{totalHours.toFixed(1)} hrs</Text>
+                        </View>
                       </View>
                     </View>
-
-                    <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
-                      <Pressable
-                        style={({ hovered, pressed }) => [
-                          styles.actionBtn,
-                          styles.emailBtn,
-                          hovered && styles.emailBtnHovered,
-                          pressed && { opacity: 0.7 }
-                        ] as any}
-                        onPress={() => handleSendEmail(emp.name, emp.email, group.reports)}
-                      >
-                        <Ionicons name="mail-outline" size={14} color="#FFF" />
-                        <Text style={styles.actionBtnText}>Email</Text>
-                      </Pressable>
-                      <Pressable
-                        style={({ hovered, pressed }) => [
-                          styles.actionBtn,
-                          styles.pdfBtn,
-                          hovered && styles.pdfBtnHovered,
-                          pressed && { opacity: 0.7 }
-                        ] as any}
-                        onPress={() => handleExportPDF(emp, group.reports)}
-                      >
-                        <Ionicons name="document-text-outline" size={14} color="#FFF" />
-                        <Text style={styles.actionBtnText}>Export PDF</Text>
-                      </Pressable>
-                    </View>
-                  </View>
-                );
-              }}
-            />
+                  );
+                }}
+              />
+            </View>
           ) : (
             <FlatList
               key={1}
@@ -1019,7 +1056,7 @@ export default function ReportsScreen() {
                             hovered && styles.emailBtnHovered,
                             pressed && { opacity: 0.7 }
                           ] as any}
-                          onPress={() => handleSendEmail(emp.name, emp.email)}
+                          onPress={() => handleSendEmail('reminder', emp.name, emp.email)}
                         >
                           <Ionicons name="mail-outline" size={14} color="#FFF" />
                           <Text style={styles.actionBtnText}>Send Reminder</Text>
@@ -1728,5 +1765,23 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 13,
     fontWeight: '600',
+  },
+  consolidatedActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 16,
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  consolidatedActionText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Brand.colors.text,
   },
 });
