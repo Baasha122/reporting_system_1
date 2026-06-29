@@ -214,16 +214,17 @@ export default function ReportsScreen() {
         const html2pdf = (window as any).html2pdf;
         const element = document.createElement('div');
         element.innerHTML = htmlContent;
-        element.style.width = '800px';
-        element.style.padding = '20px';
+        element.style.width = '700px';
+        element.style.padding = '15px';
+        element.style.boxSizing = 'border-box';
         element.style.backgroundColor = '#FFFFFF';
         document.body.appendChild(element);
 
         const opt = {
-          margin: 10,
+          margin: 8,
           filename: 'Consolidated_Report.pdf',
           image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, logging: false },
+          html2canvas: { scale: 2, useCORS: true, logging: false, width: 700 },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
 
@@ -244,16 +245,17 @@ export default function ReportsScreen() {
         const html2pdf = (window as any).html2pdf;
         const element = document.createElement('div');
         element.innerHTML = htmlContent;
-        element.style.width = '800px';
-        element.style.padding = '20px';
+        element.style.width = '700px';
+        element.style.padding = '15px';
+        element.style.boxSizing = 'border-box';
         element.style.backgroundColor = '#FFFFFF';
         document.body.appendChild(element);
 
         const opt = {
-          margin: 10,
+          margin: 8,
           filename: 'Consolidated_Report.pdf',
           image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, logging: false },
+          html2canvas: { scale: 2, useCORS: true, logging: false, width: 700 },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
 
@@ -288,11 +290,11 @@ export default function ReportsScreen() {
         const desc = extractTaskDescription(r.work_description);
         rowsHtml += `
           <tr style="border-bottom: 1px solid #E5E7EB;">
-            <td style="padding: 12px; text-align: center;">${sNo++}</td>
-            <td style="padding: 12px; font-weight: 600;">${empName}<br><span style="font-size: 11px; font-weight: 400; color: #6B7280;">${empId}</span></td>
-            <td style="padding: 12px; font-weight: 600;">${r.task_name}</td>
-            <td style="padding: 12px; text-align: left; white-space: pre-wrap;">${desc}</td>
-            <td style="padding: 12px; text-align: center; font-weight: 700;">${r.hours_worked} hrs</td>
+            <td style="padding: 10px; text-align: center; font-size: 13px;">${sNo++}</td>
+            <td style="padding: 10px; font-weight: 600; font-size: 13px;">${empName}<br><span style="font-size: 11px; font-weight: 400; color: #6B7280;">${empId}</span></td>
+            <td style="padding: 10px; font-weight: 600; font-size: 13px;">${r.task_name}</td>
+            <td style="padding: 10px; text-align: left; white-space: pre-wrap; font-size: 13px;">${desc}</td>
+            <td style="padding: 10px; text-align: center; font-weight: 700; font-size: 13px;">${r.hours_worked} hrs</td>
           </tr>
         `;
       });
@@ -311,16 +313,16 @@ export default function ReportsScreen() {
           body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             color: #1F2937;
-            padding: 40px;
+            padding: 20px;
             background-color: #FFFFFF;
+            margin: 0;
           }
-          .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+          .header-table {
+            width: 100%;
+            border-collapse: collapse;
             border-bottom: 2px solid #3B82F6;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
           }
           .college-title {
             font-size: 20px;
@@ -329,20 +331,21 @@ export default function ReportsScreen() {
             margin: 0;
           }
           .report-title {
-            font-size: 24px;
+            font-size: 22px;
             font-weight: 700;
             color: #1F2937;
             margin-top: 5px;
+            margin-bottom: 0;
           }
           .meta-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 30px;
+            margin-bottom: 25px;
           }
           .meta-table td {
             padding: 8px 12px;
             border: 1px solid #E5E7EB;
-            font-size: 14px;
+            font-size: 13px;
           }
           .meta-label {
             font-weight: 700;
@@ -352,30 +355,27 @@ export default function ReportsScreen() {
           .data-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 40px;
+            margin-bottom: 30px;
           }
           .data-table th {
             background-color: #3B82F6;
             color: #FFFFFF;
-            padding: 12px;
+            padding: 10px;
             font-weight: 700;
             font-size: 13px;
             text-transform: uppercase;
           }
-          .data-table td {
-            font-size: 14px;
-          }
-          .footer-section {
-            margin-top: 60px;
-            display: flex;
-            justify-content: space-between;
+          .footer-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 50px;
           }
           .signature-box {
             width: 200px;
             border-top: 1px solid #9CA3AF;
             text-align: center;
             padding-top: 8px;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
             color: #4B5563;
           }
@@ -386,15 +386,17 @@ export default function ReportsScreen() {
         </style>
       </head>
       <body>
-        <div class="header">
-          <div>
-            <h1 class="college-title">BARANI REPORTING SYSTEM</h1>
-            <div class="report-title">Consolidated Daily Work Report</div>
-          </div>
-          <div style="text-align: right;">
-            <div style="font-size: 14px; font-weight: 700; color: #3B82F6;">DATE: ${dateStr}</div>
-          </div>
-        </div>
+        <table class="header-table">
+          <tr>
+            <td style="text-align: left; padding: 0 0 10px 0; border: none;">
+              <h1 class="college-title">BARANI REPORTING SYSTEM</h1>
+              <h2 class="report-title">Consolidated Daily Work Report</h2>
+            </td>
+            <td style="text-align: right; vertical-align: bottom; padding: 0 0 10px 0; border: none;">
+              <div style="font-size: 14px; font-weight: 700; color: #3B82F6; letter-spacing: 0.5px;">DATE: ${dateStr}</div>
+            </td>
+          </tr>
+        </table>
 
         <table class="meta-table">
           <tr>
@@ -418,7 +420,7 @@ export default function ReportsScreen() {
               <th style="width: 20%;">Employee</th>
               <th style="width: 20%;">Project</th>
               <th>Task Description</th>
-              <th style="width: 12%;">Duration</th>
+              <th style="width: 15%;">Duration</th>
             </tr>
           </thead>
           <tbody>
@@ -426,10 +428,16 @@ export default function ReportsScreen() {
           </tbody>
         </table>
 
-        <div class="footer-section">
-          <div class="signature-box">Prepared By (HOD)</div>
-          <div class="signature-box">Approved By (Principal)</div>
-        </div>
+        <table class="footer-table">
+          <tr>
+            <td style="text-align: left; padding: 0; border: none; width: 50%;">
+              <div class="signature-box">Prepared By (HOD)</div>
+            </td>
+            <td style="text-align: right; padding: 0; border: none; width: 50%;">
+              <div class="signature-box" style="margin-left: auto;">Approved By (Principal)</div>
+            </td>
+          </tr>
+        </table>
       </body>
       </html>
     `;
