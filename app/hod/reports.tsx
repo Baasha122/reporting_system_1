@@ -276,18 +276,7 @@ export default function ReportsScreen() {
     doc.setFont("helvetica", "normal");
     doc.text(`${yesterdayReported.length} Employees`, 140, 40);
 
-    doc.setFont("helvetica", "bold");
-    doc.text("Total Hours worked:", 110, 46);
-    doc.setFont("helvetica", "normal");
-    const totalHours = yesterdayReported.reduce((sum, g) => sum + g.reports.reduce((subSum, r) => subSum + parseHours(r.hours_worked), 0), 0);
-    doc.text(`${totalHours.toFixed(1)} hrs`, 150, 46);
-
-    doc.setFont("helvetica", "bold");
-    doc.text("Total Backlog:", 14, 46);
-    doc.setFont("helvetica", "normal");
-    doc.text(`${yesterdayNotReported.length} Employees`, 40, 46);
-
-    doc.line(14, 52, 196, 52);
+    doc.line(14, 46, 196, 46);
 
     // Table Data
     const tableBody: any[] = [];
@@ -310,7 +299,7 @@ export default function ReportsScreen() {
     });
 
     (doc as any).autoTable({
-      startY: 56,
+      startY: 50,
       head: [['S.No', 'Employee', 'Project', 'Task Description', 'Duration']],
       body: tableBody,
       theme: 'grid',
@@ -448,12 +437,7 @@ export default function ReportsScreen() {
             <td class="meta-label">Total Reported Employees</td>
             <td>${totalEmployees}</td>
           </tr>
-          <tr>
-            <td class="meta-label">Total Backlogged Employees</td>
-            <td>${yesterdayNotReported.length}</td>
-            <td class="meta-label">Total Backlog/Hours Worked</td>
-            <td style="font-weight: 700;">${totalHours.toFixed(1)} hrs</td>
-          </tr>
+
         </table>
 
         <table class="data-table" border="1" borderColor="#E5E7EB">
