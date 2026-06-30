@@ -296,7 +296,9 @@ export default function ReportsScreen() {
       const empName = group.employee.name;
       const empId = group.employee.employee_id;
       group.reports.forEach((r) => {
-        const desc = extractTaskDescription(r.work_description);
+        let desc = extractTaskDescription(r.work_description);
+        // Replace unsupported unicode bullets with standard hyphens for jsPDF compatibility
+        desc = desc.replace(/[●•\u25CF\u2022]/g, '-');
         tableBody.push([
           sNo++,
           `${empName}\n(${empId})`,
@@ -319,7 +321,7 @@ export default function ReportsScreen() {
         1: { cellWidth: 35 },
         2: { cellWidth: 35 },
         3: { cellWidth: 'auto' },
-        4: { cellWidth: 20 }
+        4: { cellWidth: 22 }
       }
     });
 
