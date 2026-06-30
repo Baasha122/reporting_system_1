@@ -309,17 +309,18 @@ export default function ReportsScreen() {
       const backlogNames = sortedBacklog.map(item => `- ${item.employee?.name || 'Unknown'} (${item.employee?.employee_id || ''})`);
       
       const backlogTableBody: any[] = [];
-      for (let i = 0; i < backlogNames.length; i += 3) {
+      for (let i = 0; i < backlogNames.length; i += 4) {
         backlogTableBody.push([
           backlogNames[i] || '',
           backlogNames[i + 1] || '',
-          backlogNames[i + 2] || ''
+          backlogNames[i + 2] || '',
+          backlogNames[i + 3] || ''
         ]);
       }
 
       (doc as any).autoTable({
         startY: 48,
-        head: [[{ content: 'PENDING SUBMISSIONS (NOT REPORTED EMPLOYEES)', colSpan: 3 }]],
+        head: [[{ content: 'PENDING SUBMISSIONS (NOT REPORTED EMPLOYEES)', colSpan: 4 }]],
         body: backlogTableBody,
         theme: 'plain',
         headStyles: { 
@@ -337,9 +338,10 @@ export default function ReportsScreen() {
           cellPadding: 2 
         },
         columnStyles: {
-          0: { cellWidth: 60 },
-          1: { cellWidth: 60 },
-          2: { cellWidth: 60 }
+          0: { cellWidth: 45.5 },
+          1: { cellWidth: 45.5 },
+          2: { cellWidth: 45.5 },
+          3: { cellWidth: 45.5 }
         }
       });
       
@@ -459,7 +461,7 @@ export default function ReportsScreen() {
           <h3 style="margin-top: 0; margin-bottom: 10px; color: #DC2626; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
             Pending Submissions (Not Reported Employees):
           </h3>
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; color: #DC2626; font-size: 13px; font-weight: 600;">
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; color: #DC2626; font-size: 13px; font-weight: 600;">
             ${htmlSortedBacklog.map(item => `<div>&bull; ${item.employee?.name || 'Unknown'} (${item.employee?.employee_id || ''})</div>`).join('')}
           </div>
         </div>
