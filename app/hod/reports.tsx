@@ -340,18 +340,29 @@ export default function ReportsScreen() {
     yesterdayReported.forEach((group) => {
       const empName = group.employee.name;
       const empId = group.employee.employee_id;
-      group.reports.forEach((r) => {
+
+      // Group projects
+      const projectsText = group.reports.map(r => `- ${r.task_name}`).join('\n\n');
+
+      // Group task descriptions
+      const tasksText = group.reports.map(r => {
         let desc = extractTaskDescription(r.work_description);
         // Replace unsupported unicode bullets with standard hyphens for jsPDF compatibility
         desc = desc.replace(/[●•\u25CF\u2022]/g, '-');
-        tableBody.push([
-          sNo++,
-          `${empName}\n(${empId})`,
-          r.task_name,
-          desc,
-          `${r.hours_worked} hrs`
-        ]);
-      });
+        return `[${r.task_name}]\n${desc}`;
+      }).join('\n\n');
+
+      // Group durations
+      const groupTotal = group.reports.reduce((sum, r) => sum + parseHours(r.hours_worked), 0);
+      const durationsText = group.reports.map(r => `${r.hours_worked} hrs`).join('\n\n') + `\n\n-----------------\nTotal: ${groupTotal.toFixed(1)} hrs`;
+
+      tableBody.push([
+        sNo++,
+        `${empName}\n(${empId})`,
+        projectsText,
+        tasksText,
+        durationsText
+      ]);
     });
 
     (doc as any).autoTable({
@@ -388,18 +399,45 @@ export default function ReportsScreen() {
       const empName = group.employee.name;
       const empId = group.employee.employee_id;
       
-      group.reports.forEach((r) => {
+      const projectsHtml = group.reports.map(r => `
+        <div style="margin-bottom: 6px; font-weight: 600;">&bull; ${r.task_name}</div>
+      `).join('');
+
+      const tasksHtml = group.reports.map(r => {
         const desc = extractTaskDescription(r.work_description);
-        rowsHtml += `
-          <tr style="border-bottom: 1px solid #E5E7EB;">
-            <td style="padding: 10px; text-align: center; font-size: 13px;">${sNo++}</td>
-            <td style="padding: 10px; font-weight: 600; font-size: 13px;">${empName}<br><span style="font-size: 11px; font-weight: 400; color: #6B7280;">${empId}</span></td>
-            <td style="padding: 10px; font-weight: 600; font-size: 13px;">${r.task_name}</td>
-            <td style="padding: 10px; text-align: left; white-space: pre-wrap; font-size: 13px;">${desc}</td>
-            <td style="padding: 10px; text-align: center; font-weight: 700; font-size: 13px;">${r.hours_worked} hrs</td>
-          </tr>
+        return `
+          <div style="margin-bottom: 10px;">
+            <strong style="color: #4B5563;">[${r.task_name}]</strong><br>${desc}
+          </div>
         `;
-      });
+      }).join('');
+
+      const durationsHtml = group.reports.map(r => `
+        <div style="margin-bottom: 6px;">${r.hours_worked} hrs</div>
+      `).join('');
+
+      const groupTotalHours = group.reports.reduce((sum, r) => sum + parseHours(r.hours_worked), 0);
+
+      rowsHtml += `
+        <tr style="border-bottom: 1px solid #E5E7EB; vertical-align: top;">
+          <td style="padding: 10px; text-align: center; font-size: 13px;">${sNo++}</td>
+          <td style="padding: 10px; font-weight: 600; font-size: 13px;">
+            ${empName}<br><span style="font-size: 11px; font-weight: 400; color: #6B7280;">${empId}</span>
+          </td>
+          <td style="padding: 10px; font-size: 13px;">
+            ${projectsHtml}
+          </td>
+          <td style="padding: 10px; text-align: left; white-space: pre-wrap; font-size: 13px;">
+            ${tasksHtml}
+          </td>
+          <td style="padding: 10px; text-align: center; font-size: 13px;">
+            ${durationsHtml}
+            <div style="margin-top: 10px; padding-top: 6px; border-top: 1px dashed #D1D5DB; font-weight: 700; color: #1F2937;">
+              Total:<br>${groupTotalHours.toFixed(1)} hrs
+            </div>
+          </td>
+        </tr>
+      `;
     });
 
     const totalHours = yesterdayReported.reduce((sum, g) => sum + g.reports.reduce((subSum, r) => subSum + parseHours(r.hours_worked), 0), 0);
