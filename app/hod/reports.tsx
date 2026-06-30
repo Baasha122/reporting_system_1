@@ -276,7 +276,12 @@ export default function ReportsScreen() {
     doc.setFont("helvetica", "normal");
     doc.text(`${yesterdayReported.length} Employees`, 140, 40);
 
-    doc.line(14, 46, 196, 46);
+    doc.setFont("helvetica", "bold");
+    doc.text("Total Backlog:", 14, 46);
+    doc.setFont("helvetica", "normal");
+    doc.text(`${yesterdayNotReported.length} Employees`, 40, 46);
+
+    doc.line(14, 52, 196, 52);
 
     // Table Data
     const tableBody: any[] = [];
@@ -299,7 +304,7 @@ export default function ReportsScreen() {
     });
 
     (doc as any).autoTable({
-      startY: 50,
+      startY: 56,
       head: [['S.No', 'Employee', 'Project', 'Task Description', 'Duration']],
       body: tableBody,
       theme: 'grid',
@@ -437,7 +442,10 @@ export default function ReportsScreen() {
             <td class="meta-label">Total Reported Employees</td>
             <td>${totalEmployees}</td>
           </tr>
-
+          <tr>
+            <td class="meta-label">Total Backlogged Employees</td>
+            <td colspan="3">${yesterdayNotReported.length}</td>
+          </tr>
         </table>
 
         <table class="data-table" border="1" borderColor="#E5E7EB">
