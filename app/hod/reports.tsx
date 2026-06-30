@@ -1151,7 +1151,7 @@ export default function ReportsScreen() {
                 const emp = group.employee;
 
                 return (
-                  <View key={emp.id} style={[styles.card, { flex: 1, paddingVertical: 14, paddingHorizontal: 16, justifyContent: 'center' }]}>
+                  <View key={emp.id} style={[styles.card, { flex: 1, minHeight: 'auto', paddingVertical: 14, paddingHorizontal: 16, justifyContent: 'center' }]}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                       <Text style={[styles.cardEmpName, { fontSize: 15, fontWeight: '700', flex: 1, marginRight: 8 }]} numberOfLines={1}>
                         {emp.name}
