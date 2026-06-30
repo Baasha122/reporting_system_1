@@ -549,12 +549,21 @@ export default function ReportsScreen() {
         throw new Error(resData.error || 'Failed to send email');
       }
 
-      Alert.alert("Success", "Consolidated PDF report has been emailed directly!");
+      if (Platform.OS === 'web') {
+        alert("Success: Consolidated PDF report has been emailed directly!");
+      } else {
+        Alert.alert("Success", "Consolidated PDF report has been emailed directly!");
+      }
       setEmailModalVisible(false);
       setRecipientEmails('');
     } catch (error: any) {
       console.error("Error sending direct email:", error);
-      Alert.alert("Direct Send Failed", error?.message || "Ensure the background service is running on the server laptop and SMTP settings in .env are configured.");
+      const errorMsg = error?.message || "Ensure the background service is running on the server laptop and SMTP settings in .env are configured.";
+      if (Platform.OS === 'web') {
+        alert("Direct Send Failed:\n" + errorMsg);
+      } else {
+        Alert.alert("Direct Send Failed", errorMsg);
+      }
     } finally {
       setEmailSending(false);
     }
