@@ -294,7 +294,7 @@ export default function ReportsScreen() {
     let currentY = 48;
 
     if (sortedBacklog.length > 0) {
-      const backlogNames = sortedBacklog.map(item => `● ${item.employee?.name || 'Unknown'} (${item.employee?.employee_id || ''})`);
+      const backlogNames = sortedBacklog.map(item => `- ${item.employee?.name || 'Unknown'} (${item.employee?.employee_id || ''})`);
       
       const backlogTableBody: any[] = [];
       for (let i = 0; i < backlogNames.length; i += 3) {
