@@ -317,7 +317,7 @@ export default function ReportsScreen() {
       headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontStyle: 'bold' },
       styles: { fontSize: 9, cellPadding: 4, overflow: 'linebreak' },
       columnStyles: {
-        0: { cellWidth: 10 },
+        0: { cellWidth: 14 },
         1: { cellWidth: 35 },
         2: { cellWidth: 35 },
         3: { cellWidth: 'auto' },
