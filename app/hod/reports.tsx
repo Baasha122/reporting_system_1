@@ -1024,65 +1024,66 @@ export default function ReportsScreen() {
         </ScrollView>
       ) : filter === 'yesterday' ? (
         <View style={{ flex: 1 }}>
-          <View style={styles.yesterdayTabs}>
-            <Pressable
-              style={({ hovered }) => [
-                styles.yesterdayTab,
-                yesterdaySubTab === 'reported' && styles.yesterdayTabActive,
-                hovered && { backgroundColor: '#F3F4F6' }
-              ] as any}
-              onPress={() => setYesterdaySubTab('reported')}
-            >
-              <Text style={[styles.yesterdayTabText, yesterdaySubTab === 'reported' && styles.yesterdayTabTextActive]}>
-                Reported ({yesterdayReported.length})
-              </Text>
-            </Pressable>
-            <Pressable
-              style={({ hovered }) => [
-                styles.yesterdayTab,
-                yesterdaySubTab === 'not_reported' && styles.yesterdayTabActive,
-                hovered && { backgroundColor: '#F3F4F6' }
-              ] as any}
-              onPress={() => setYesterdaySubTab('not_reported')}
-            >
-              <Text style={[styles.yesterdayTabText, yesterdaySubTab === 'not_reported' && styles.yesterdayTabTextActive]}>
-                Not Reported ({yesterdayNotReported.length})
-              </Text>
-            </Pressable>
+          <View style={[styles.yesterdayTabs, { justifyContent: 'space-between', alignItems: 'center' }]}>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <Pressable
+                style={({ hovered }) => [
+                  styles.yesterdayTab,
+                  yesterdaySubTab === 'reported' && styles.yesterdayTabActive,
+                  hovered && { backgroundColor: '#F3F4F6' }
+                ] as any}
+                onPress={() => setYesterdaySubTab('reported')}
+              >
+                <Text style={[styles.yesterdayTabText, yesterdaySubTab === 'reported' && styles.yesterdayTabTextActive]}>
+                  Reported ({yesterdayReported.length})
+                </Text>
+              </Pressable>
+              <Pressable
+                style={({ hovered }) => [
+                  styles.yesterdayTab,
+                  yesterdaySubTab === 'not_reported' && styles.yesterdayTabActive,
+                  hovered && { backgroundColor: '#F3F4F6' }
+                ] as any}
+                onPress={() => setYesterdaySubTab('not_reported')}
+              >
+                <Text style={[styles.yesterdayTabText, yesterdaySubTab === 'not_reported' && styles.yesterdayTabTextActive]}>
+                  Not Reported ({yesterdayNotReported.length})
+                </Text>
+              </Pressable>
+            </View>
+
+            {yesterdaySubTab === 'reported' && (
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <Pressable
+                  style={({ hovered, pressed }) => [
+                    styles.actionBtn,
+                    styles.emailBtn,
+                    hovered && styles.emailBtnHovered,
+                    pressed && { opacity: 0.7 }
+                  ] as any}
+                  onPress={() => handleSendEmail('consolidated')}
+                >
+                  <Ionicons name="mail-outline" size={14} color="#FFF" />
+                  <Text style={styles.actionBtnText}>Consolidated Email</Text>
+                </Pressable>
+                <Pressable
+                  style={({ hovered, pressed }) => [
+                    styles.actionBtn,
+                    styles.pdfBtn,
+                    hovered && styles.pdfBtnHovered,
+                    pressed && { opacity: 0.7 }
+                  ] as any}
+                  onPress={handleExportPDF}
+                >
+                  <Ionicons name="document-text-outline" size={14} color="#FFF" />
+                  <Text style={styles.actionBtnText}>Export Consolidated PDF</Text>
+                </Pressable>
+              </View>
+            )}
           </View>
 
           {yesterdaySubTab === 'reported' ? (
             <View style={{ flex: 1 }}>
-              {/* Consolidated Action Panel */}
-              <View style={styles.consolidatedActionRow}>
-                <Text style={styles.consolidatedActionText}>Consolidated Actions:</Text>
-                <View style={{ flexDirection: 'row', gap: 12 }}>
-                  <Pressable
-                    style={({ hovered, pressed }) => [
-                      styles.actionBtn,
-                      styles.emailBtn,
-                      hovered && styles.emailBtnHovered,
-                      pressed && { opacity: 0.7 }
-                    ] as any}
-                    onPress={() => handleSendEmail('consolidated')}
-                  >
-                    <Ionicons name="mail-outline" size={14} color="#FFF" />
-                    <Text style={styles.actionBtnText}>Consolidated Email</Text>
-                  </Pressable>
-                  <Pressable
-                    style={({ hovered, pressed }) => [
-                      styles.actionBtn,
-                      styles.pdfBtn,
-                      hovered && styles.pdfBtnHovered,
-                      pressed && { opacity: 0.7 }
-                    ] as any}
-                    onPress={handleExportPDF}
-                  >
-                    <Ionicons name="document-text-outline" size={14} color="#FFF" />
-                    <Text style={styles.actionBtnText}>Export Consolidated PDF</Text>
-                  </Pressable>
-                </View>
-              </View>
 
               <FlatList
                 key={numColumns}
@@ -1950,23 +1951,5 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 13,
     fontWeight: '600',
-  },
-  consolidatedActionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 16,
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  consolidatedActionText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: Brand.colors.text,
   },
 });
