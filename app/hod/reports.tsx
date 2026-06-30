@@ -512,19 +512,7 @@ export default function ReportsScreen() {
       yesterday.setDate(yesterday.getDate() - 1);
       const dateStr = yesterday.toISOString().split('T')[0];
 
-      let tasksText = "";
-      yesterdayReported.forEach((group) => {
-        const emp = group.employee;
-        tasksText += `Employee: ${emp.name} (${emp.employee_id})\n`;
-        group.reports.forEach((r) => {
-          const desc = extractTaskDescription(r.work_description);
-          tasksText += ` - Project: ${r.task_name} | Task: ${desc} | Hours: ${r.hours_worked} hrs\n`;
-        });
-        tasksText += `\n`;
-      });
-
-      const totalHours = yesterdayReported.reduce((sum, g) => sum + g.reports.reduce((subSum, r) => subSum + parseHours(r.hours_worked), 0), 0);
-      const body = `Hi,\n\nHere is the consolidated work report for yesterday (${dateStr}):\n\n${tasksText}Total Hours Worked across Department: ${totalHours.toFixed(1)} hrs\n\nBest regards,\nDepartment Head`;
+      const body = `Hi,\n\nPlease find attached the consolidated work report for yesterday (${dateStr}).\n\nBest regards,\nDepartment Head`;
 
       const pdfBase64 = generatePDFBase64(jspdfModule);
 
