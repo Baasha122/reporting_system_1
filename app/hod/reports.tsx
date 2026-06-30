@@ -264,24 +264,75 @@ export default function ReportsScreen() {
     doc.setDrawColor(229, 231, 235); // Light grey
     doc.line(14, 34, 196, 34);
 
-    doc.setFontSize(10);
+    const totalEmployees = yesterdayReported.length + yesterdayNotReported.length;
+
+    doc.setFontSize(9);
     doc.setTextColor(75, 85, 99); // Grey
+    
     doc.setFont("helvetica", "bold");
     doc.text("Department:", 14, 40);
     doc.setFont("helvetica", "normal");
-    doc.text(user?.department || 'Unknown Department', 40, 40);
+    doc.text(user?.department || 'Unknown Department', 34, 40);
 
     doc.setFont("helvetica", "bold");
-    doc.text("Total Reported:", 110, 40);
+    doc.text("Reported Employees:", 78, 40);
     doc.setFont("helvetica", "normal");
-    doc.text(`${yesterdayReported.length} Employees`, 140, 40);
+    doc.text(`${yesterdayReported.length}/${totalEmployees}`, 115, 40);
 
     doc.setFont("helvetica", "bold");
-    doc.text("Total Backlog:", 14, 46);
+    doc.text("Backlogged Employees:", 135, 40);
     doc.setFont("helvetica", "normal");
-    doc.text(`${yesterdayNotReported.length} Employees`, 40, 46);
+    doc.text(`${yesterdayNotReported.length}/${totalEmployees}`, 174, 40);
 
-    doc.line(14, 52, 196, 52);
+    doc.line(14, 46, 196, 46);
+
+    // Sort backlog employees alphabetically
+    const sortedBacklog = [...yesterdayNotReported].sort((a, b) => 
+      (a.employee?.name || '').localeCompare(b.employee?.name || '')
+    );
+
+    let currentY = 48;
+
+    if (sortedBacklog.length > 0) {
+      const backlogNames = sortedBacklog.map(item => `● ${item.employee?.name || 'Unknown'} (${item.employee?.employee_id || ''})`);
+      
+      const backlogTableBody: any[] = [];
+      for (let i = 0; i < backlogNames.length; i += 3) {
+        backlogTableBody.push([
+          backlogNames[i] || '',
+          backlogNames[i + 1] || '',
+          backlogNames[i + 2] || ''
+        ]);
+      }
+
+      (doc as any).autoTable({
+        startY: 48,
+        head: [[{ content: 'PENDING SUBMISSIONS (NOT REPORTED EMPLOYEES)', colSpan: 3 }]],
+        body: backlogTableBody,
+        theme: 'plain',
+        headStyles: { 
+          fillColor: [254, 242, 242], 
+          textColor: [220, 38, 38], 
+          fontStyle: 'bold',
+          halign: 'left',
+          fontSize: 8.5
+        },
+        bodyStyles: { 
+          textColor: [220, 38, 38],
+          fontSize: 8.5
+        },
+        styles: { 
+          cellPadding: 2 
+        },
+        columnStyles: {
+          0: { cellWidth: 60 },
+          1: { cellWidth: 60 },
+          2: { cellWidth: 60 }
+        }
+      });
+      
+      currentY = (doc as any).lastAutoTable.finalY + 8;
+    }
 
     // Table Data
     const tableBody: any[] = [];
@@ -304,7 +355,7 @@ export default function ReportsScreen() {
     });
 
     (doc as any).autoTable({
-      startY: 56,
+      startY: currentY,
       head: [['S.No', 'Employee', 'Project', 'Task Description', 'Duration']],
       body: tableBody,
       theme: 'grid',
@@ -353,6 +404,25 @@ export default function ReportsScreen() {
 
     const totalHours = yesterdayReported.reduce((sum, g) => sum + g.reports.reduce((subSum, r) => subSum + parseHours(r.hours_worked), 0), 0);
     const totalEmployees = yesterdayReported.length;
+    const totalCount = yesterdayReported.length + yesterdayNotReported.length;
+
+    const htmlSortedBacklog = [...yesterdayNotReported].sort((a, b) => 
+      (a.employee?.name || '').localeCompare(b.employee?.name || '')
+    );
+
+    let backlogBlockHtml = "";
+    if (htmlSortedBacklog.length > 0) {
+      backlogBlockHtml = `
+        <div style="margin-bottom: 25px; border: 1.5px solid #FCA5A5; background-color: #FEF2F2; padding: 14px; border-radius: 8px;">
+          <h3 style="margin-top: 0; margin-bottom: 10px; color: #DC2626; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
+            Pending Submissions (Not Reported Employees):
+          </h3>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; color: #DC2626; font-size: 13px; font-weight: 600;">
+            ${htmlSortedBacklog.map(item => `<div>&bull; ${item.employee?.name || 'Unknown'} (${item.employee?.employee_id || ''})</div>`).join('')}
+          </div>
+        </div>
+      `;
+    }
 
     return `
       <!DOCTYPE html>
@@ -437,16 +507,16 @@ export default function ReportsScreen() {
 
         <table class="meta-table">
           <tr>
-            <td class="meta-label">Department</td>
-            <td>${user?.department || 'Unknown Department'}</td>
-            <td class="meta-label">Total Reported Employees</td>
-            <td>${totalEmployees}</td>
-          </tr>
-          <tr>
-            <td class="meta-label">Total Backlogged Employees</td>
-            <td colspan="3">${yesterdayNotReported.length}</td>
+            <td class="meta-label" style="width: 12%;">Department</td>
+            <td style="width: 20%;">${user?.department || 'Unknown Department'}</td>
+            <td class="meta-label" style="width: 20%;">Reported Employees</td>
+            <td style="width: 14%;">${totalEmployees}/${totalCount}</td>
+            <td class="meta-label" style="width: 20%;">Backlogged Employees</td>
+            <td style="width: 14%;">${yesterdayNotReported.length}/${totalCount}</td>
           </tr>
         </table>
+
+        ${backlogBlockHtml}
 
         <table class="data-table" border="1" borderColor="#E5E7EB">
           <thead>
