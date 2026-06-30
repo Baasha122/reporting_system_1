@@ -1138,8 +1138,9 @@ export default function ReportsScreen() {
             </View>
           ) : (
             <FlatList
-              key={1}
-              numColumns={1}
+              key={numColumns}
+              numColumns={numColumns}
+              columnWrapperStyle={numColumns > 1 ? styles.rowWrapper : undefined}
               data={yesterdayNotReported}
               keyExtractor={(item) => item.employee.id}
               contentContainerStyle={styles.gridContainer}
@@ -1150,32 +1151,23 @@ export default function ReportsScreen() {
                 const emp = group.employee;
 
                 return (
-                  <View key={emp.id} style={[styles.card, { minHeight: 'auto', paddingVertical: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
-                    <View>
-                      <Text style={styles.cardEmpName}>{emp.name}</Text>
-                      <Text style={styles.cardEmpId}>{emp.employee_id} • {emp.email || 'No email registered'}</Text>
-                    </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                      <View style={[styles.statusBadge, { backgroundColor: Brand.colors.error + '20', marginRight: 8 }]}>
-                        <Text style={[styles.statusText, { color: Brand.colors.error }]}>
-                          NOT REPORTED
+                  <View key={emp.id} style={[styles.card, { flex: 1, minHeight: 90, paddingVertical: 12, paddingHorizontal: 16, justifyContent: 'center' }]}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <Text style={[styles.cardEmpName, { fontSize: 15, fontWeight: '700' }]} numberOfLines={1}>
+                        {emp.name}
+                      </Text>
+                      <View style={[styles.statusBadge, { backgroundColor: Brand.colors.error + '15', paddingVertical: 2, paddingHorizontal: 6 }]}>
+                        <Text style={[styles.statusText, { color: Brand.colors.error, fontSize: 10 }]}>
+                          PENDING
                         </Text>
                       </View>
-                      {emp.email ? (
-                        <Pressable
-                          style={({ hovered, pressed }) => [
-                            styles.actionBtn,
-                            styles.emailBtn,
-                            hovered && styles.emailBtnHovered,
-                            pressed && { opacity: 0.7 }
-                          ] as any}
-                          onPress={() => handleSendEmail('reminder', emp.name, emp.email)}
-                        >
-                          <Ionicons name="mail-outline" size={14} color="#FFF" />
-                          <Text style={styles.actionBtnText}>Send Reminder</Text>
-                        </Pressable>
-                      ) : null}
                     </View>
+                    <Text style={styles.cardEmpId} numberOfLines={1}>
+                      ID: {emp.employee_id}
+                    </Text>
+                    <Text style={[styles.cardEmpId, { marginTop: 2, fontSize: 12, color: Brand.colors.textSecondary }]} numberOfLines={1}>
+                      {emp.email || 'No email registered'}
+                    </Text>
                   </View>
                 );
               }}
