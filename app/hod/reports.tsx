@@ -383,7 +383,7 @@ export default function ReportsScreen() {
       body: tableBody,
       theme: 'grid',
       headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontStyle: 'bold' },
-      styles: { fontSize: 9, cellPadding: 4, overflow: 'linebreak' },
+      styles: { fontSize: 9, cellPadding: 4, overflow: 'linebreak', lineColor: [0, 0, 0], lineWidth: 0.15 },
       columnStyles: {
         0: { cellWidth: 14 },
         1: { cellWidth: 35 },
@@ -423,7 +423,7 @@ export default function ReportsScreen() {
       const groupTotalHours = group.reports.reduce((sum, r) => sum + parseHours(r.hours_worked), 0);
 
       rowsHtml += `
-        <tr style="border-bottom: 1px solid #E5E7EB; vertical-align: top;">
+        <tr style="border-bottom: 1px solid #000000; vertical-align: top;">
           <td style="padding: 10px; text-align: center; font-size: 13px;">${sNo++}</td>
           <td style="padding: 10px; font-weight: 600; font-size: 13px;">
             ${empName}<br><span style="font-size: 11px; font-weight: 400; color: #6B7280;">${empId}</span>
@@ -520,6 +520,9 @@ export default function ReportsScreen() {
             border-collapse: collapse;
             margin-bottom: 30px;
           }
+          .data-table, .data-table th, .data-table td {
+            border: 1px solid #000000;
+          }
           .data-table th {
             background-color: #3B82F6;
             color: #FFFFFF;
@@ -560,7 +563,7 @@ export default function ReportsScreen() {
 
         ${backlogBlockHtml}
 
-        <table class="data-table" border="1" borderColor="#E5E7EB">
+        <table class="data-table" border="1" borderColor="#000000">
           <thead>
             <tr>
               <th style="width: 6%;">S.No</th>
