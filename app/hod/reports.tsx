@@ -399,22 +399,14 @@ export default function ReportsScreen() {
       const empName = group.employee.name;
       const empId = group.employee.employee_id;
       
-      const projectsHtml = group.reports.map(r => `
-        <div style="margin-bottom: 6px; font-weight: 600;">&bull; ${r.task_name}</div>
-      `).join('');
+      const projectsHtml = group.reports.map(r => `<div style="margin-bottom: 6px; font-weight: 600;">&bull; ${r.task_name}</div>`).join('');
 
       const tasksHtml = group.reports.map(r => {
         const desc = extractTaskDescription(r.work_description);
-        return `
-          <div style="margin-bottom: 10px;">
-            <strong style="color: #4B5563;">[${r.task_name}]</strong><br>${desc}
-          </div>
-        `;
+        return `<div style="margin-bottom: 12px;"><strong style="color: #1E3A8A; font-size: 13px;">[${r.task_name}]</strong><div style="white-space: pre-wrap; margin-top: 4px; line-height: 1.4; color: #374151;">${desc}</div></div>`;
       }).join('');
 
-      const durationsHtml = group.reports.map(r => `
-        <div style="margin-bottom: 6px;">${r.hours_worked} hrs</div>
-      `).join('');
+      const durationsHtml = group.reports.map(r => `<div style="margin-bottom: 6px;">${r.hours_worked} hrs</div>`).join('');
 
       const groupTotalHours = group.reports.reduce((sum, r) => sum + parseHours(r.hours_worked), 0);
 
@@ -427,7 +419,7 @@ export default function ReportsScreen() {
           <td style="padding: 10px; font-size: 13px;">
             ${projectsHtml}
           </td>
-          <td style="padding: 10px; text-align: left; white-space: pre-wrap; font-size: 13px;">
+          <td style="padding: 10px; text-align: left; font-size: 13px;">
             ${tasksHtml}
           </td>
           <td style="padding: 10px; text-align: center; font-size: 13px;">
