@@ -309,19 +309,20 @@ export default function ReportsScreen() {
       const backlogNames = sortedBacklog.map(item => `- ${item.employee?.name || 'Unknown'}`);
       
       const backlogTableBody: any[] = [];
-      for (let i = 0; i < backlogNames.length; i += 5) {
+      for (let i = 0; i < backlogNames.length; i += 6) {
         backlogTableBody.push([
           backlogNames[i] || '',
           backlogNames[i + 1] || '',
           backlogNames[i + 2] || '',
           backlogNames[i + 3] || '',
-          backlogNames[i + 4] || ''
+          backlogNames[i + 4] || '',
+          backlogNames[i + 5] || ''
         ]);
       }
 
       (doc as any).autoTable({
         startY: 48,
-        head: [[{ content: 'PENDING SUBMISSIONS (NOT REPORTED EMPLOYEES)', colSpan: 5 }]],
+        head: [[{ content: 'PENDING SUBMISSIONS (NOT REPORTED EMPLOYEES)', colSpan: 6 }]],
         body: backlogTableBody,
         theme: 'plain',
         headStyles: { 
@@ -339,11 +340,12 @@ export default function ReportsScreen() {
           cellPadding: 2 
         },
         columnStyles: {
-          0: { cellWidth: 36.4 },
-          1: { cellWidth: 36.4 },
-          2: { cellWidth: 36.4 },
-          3: { cellWidth: 36.4 },
-          4: { cellWidth: 36.4 }
+          0: { cellWidth: 30.33 },
+          1: { cellWidth: 30.33 },
+          2: { cellWidth: 30.33 },
+          3: { cellWidth: 30.33 },
+          4: { cellWidth: 30.33 },
+          5: { cellWidth: 30.33 }
         }
       });
       
@@ -463,7 +465,7 @@ export default function ReportsScreen() {
           <h3 style="margin-top: 0; margin-bottom: 10px; color: #DC2626; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
             Pending Submissions (Not Reported Employees):
           </h3>
-          <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px 10px; color: #DC2626; font-size: 13px; font-weight: 600;">
+          <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px 10px; color: #DC2626; font-size: 13px; font-weight: 600;">
             ${htmlSortedBacklog.map(item => `<div>&bull; ${item.employee?.name || 'Unknown'}</div>`).join('')}
           </div>
         </div>
