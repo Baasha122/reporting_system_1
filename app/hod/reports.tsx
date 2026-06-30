@@ -1151,23 +1151,17 @@ export default function ReportsScreen() {
                 const emp = group.employee;
 
                 return (
-                  <View key={emp.id} style={[styles.card, { flex: 1, minHeight: 90, paddingVertical: 12, paddingHorizontal: 16, justifyContent: 'center' }]}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                      <Text style={[styles.cardEmpName, { fontSize: 15, fontWeight: '700' }]} numberOfLines={1}>
+                  <View key={emp.id} style={[styles.card, { flex: 1, paddingVertical: 14, paddingHorizontal: 16, justifyContent: 'center' }]}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Text style={[styles.cardEmpName, { fontSize: 15, fontWeight: '700', flex: 1, marginRight: 8 }]} numberOfLines={1}>
                         {emp.name}
                       </Text>
-                      <View style={[styles.statusBadge, { backgroundColor: Brand.colors.error + '15', paddingVertical: 2, paddingHorizontal: 6 }]}>
-                        <Text style={[styles.statusText, { color: Brand.colors.error, fontSize: 10 }]}>
+                      <View style={[styles.statusBadge, { backgroundColor: Brand.colors.error + '15', paddingVertical: 2, paddingHorizontal: 8, borderRadius: 4 }]}>
+                        <Text style={[styles.statusText, { color: Brand.colors.error, fontSize: 10, fontWeight: '700' }]}>
                           PENDING
                         </Text>
                       </View>
                     </View>
-                    <Text style={styles.cardEmpId} numberOfLines={1}>
-                      ID: {emp.employee_id}
-                    </Text>
-                    <Text style={[styles.cardEmpId, { marginTop: 2, fontSize: 12, color: Brand.colors.textSecondary }]} numberOfLines={1}>
-                      {emp.email || 'No email registered'}
-                    </Text>
                   </View>
                 );
               }}
