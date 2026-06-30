@@ -273,7 +273,7 @@ export default function ReportsScreen() {
     doc.text(`DATE: ${dateStr}`, 150, 20);
 
     // Meta Section
-    doc.setDrawColor(229, 231, 235); // Light grey
+    doc.setDrawColor(0, 0, 0); // Black
     doc.line(14, 34, 196, 34);
 
     const totalEmployees = yesterdayReported.length + yesterdayNotReported.length;
@@ -513,7 +513,7 @@ export default function ReportsScreen() {
           }
           .meta-table td {
             padding: 8px 12px;
-            border: 1px solid #E5E7EB;
+            border: 1px solid #000000;
             font-size: 13px;
           }
           .meta-label {
