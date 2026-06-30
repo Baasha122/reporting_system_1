@@ -306,7 +306,7 @@ export default function ReportsScreen() {
     let currentY = 48;
 
     if (sortedBacklog.length > 0) {
-      const backlogNames = sortedBacklog.map(item => `- ${item.employee?.name || 'Unknown'} (${item.employee?.employee_id || ''})`);
+      const backlogNames = sortedBacklog.map(item => `- ${item.employee?.name || 'Unknown'}`);
       
       const backlogTableBody: any[] = [];
       for (let i = 0; i < backlogNames.length; i += 5) {
@@ -464,7 +464,7 @@ export default function ReportsScreen() {
             Pending Submissions (Not Reported Employees):
           </h3>
           <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; color: #DC2626; font-size: 13px; font-weight: 600;">
-            ${htmlSortedBacklog.map(item => `<div>&bull; ${item.employee?.name || 'Unknown'} (${item.employee?.employee_id || ''})</div>`).join('')}
+            ${htmlSortedBacklog.map(item => `<div>&bull; ${item.employee?.name || 'Unknown'}</div>`).join('')}
           </div>
         </div>
       `;
