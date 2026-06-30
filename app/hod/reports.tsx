@@ -32,10 +32,22 @@ export default function ReportsScreen() {
   const [emailModalVisible, setEmailModalVisible] = useState(false);
   const [recipientEmails, setRecipientEmails] = useState('');
   const [emailSending, setEmailSending] = useState(false);
+  const emailInputRef = React.useRef<any>(null);
 
   useEffect(() => {
     setModalPage(1);
   }, [selectedEmployeeDetails]);
+
+  useEffect(() => {
+    if (emailModalVisible) {
+      if (Platform.OS === 'web') {
+        window.focus();
+      }
+      setTimeout(() => {
+        emailInputRef.current?.focus();
+      }, 100);
+    }
+  }, [emailModalVisible]);
 
   useEffect(() => {
     loadReports();
@@ -1558,6 +1570,7 @@ export default function ReportsScreen() {
               value={recipientEmails}
               onChangeText={setRecipientEmails}
               editable={!emailSending}
+              ref={emailInputRef}
             />
 
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12 }}>
