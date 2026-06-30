@@ -208,69 +208,124 @@ export default function ReportsScreen() {
     return groupedReports.filter(g => g.reports.length === 0);
   }, [groupedReports]);
 
-  const generatePDFBase64FromHtml = (htmlContent: string): Promise<string> => {
+  const loadJsPDFLibrary = (): Promise<any> => {
     return new Promise((resolve, reject) => {
-      if ((window as any).html2pdf) {
-        const html2pdf = (window as any).html2pdf;
-        const element = document.createElement('div');
-        element.innerHTML = htmlContent;
-        element.style.width = '700px';
-        element.style.padding = '15px';
-        element.style.boxSizing = 'border-box';
-        element.style.backgroundColor = '#FFFFFF';
-        document.body.appendChild(element);
-
-        const opt = {
-          margin: 8,
-          filename: 'Consolidated_Report.pdf',
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, logging: false, width: 700 },
-          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-
-        html2pdf().from(element).set(opt).outputPdf('datauristring').then((dataUri: string) => {
-          document.body.removeChild(element);
-          const base64Str = dataUri.split(',')[1];
-          resolve(base64Str);
-        }).catch((err: any) => {
-          document.body.removeChild(element);
-          reject(err);
-        });
+      if ((window as any).jspdf) {
+        resolve((window as any).jspdf);
         return;
       }
 
+      const serverHost = Platform.OS === 'web' ? window.location.hostname : 'localhost';
+      const jsPdfUrl = `http://${serverHost}:8001/public/jspdf.umd.min.js`;
+      const autotableUrl = `http://${serverHost}:8001/public/jspdf.plugin.autotable.min.js`;
+
       const script = document.createElement('script');
-      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+      script.src = jsPdfUrl;
       script.onload = () => {
-        const html2pdf = (window as any).html2pdf;
-        const element = document.createElement('div');
-        element.innerHTML = htmlContent;
-        element.style.width = '700px';
-        element.style.padding = '15px';
-        element.style.boxSizing = 'border-box';
-        element.style.backgroundColor = '#FFFFFF';
-        document.body.appendChild(element);
-
-        const opt = {
-          margin: 8,
-          filename: 'Consolidated_Report.pdf',
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, logging: false, width: 700 },
-          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        const scriptAutoTable = document.createElement('script');
+        scriptAutoTable.src = autotableUrl;
+        scriptAutoTable.onload = () => {
+          resolve((window as any).jspdf);
         };
-
-        html2pdf().from(element).set(opt).outputPdf('datauristring').then((dataUri: string) => {
-          document.body.removeChild(element);
-          const base64Str = dataUri.split(',')[1];
-          resolve(base64Str);
-        }).catch((err: any) => {
-          document.body.removeChild(element);
-          reject(err);
-        });
+        scriptAutoTable.onerror = (e) => reject(new Error("Failed to load jsPDF autotable extension. Ensure background service is running."));
+        document.body.appendChild(scriptAutoTable);
       };
-      script.onerror = (e) => reject(new Error("Failed to load html2pdf script. Ensure you have internet access."));
+      script.onerror = (e) => reject(new Error("Failed to load jsPDF core library. Ensure background service is running."));
       document.body.appendChild(script);
     });
+  };
+
+  const generatePDFBase64 = (jspdfModule: any): string => {
+    const jsPDFConstructor = jspdfModule.jsPDF || (window as any).jspdf?.jsPDF;
+    if (!jsPDFConstructor) {
+      throw new Error("jsPDF constructor not found in global namespace");
+    }
+
+    const doc = new jsPDFConstructor();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const dateStr = yesterday.toISOString().split('T')[0];
+
+    // Document Header
+    doc.setFontSize(20);
+    doc.setTextColor(30, 58, 138); // Dark blue
+    doc.setFont("helvetica", "bold");
+    doc.text("BARANI REPORTING SYSTEM", 14, 20);
+
+    doc.setFontSize(14);
+    doc.setTextColor(31, 41, 55); // Dark grey
+    doc.text("Consolidated Daily Work Report", 14, 28);
+
+    doc.setFontSize(10);
+    doc.setTextColor(59, 130, 246); // Blue
+    doc.text(`DATE: ${dateStr}`, 150, 20);
+
+    // Meta Section
+    doc.setDrawColor(229, 231, 235); // Light grey
+    doc.line(14, 34, 196, 34);
+
+    doc.setFontSize(10);
+    doc.setTextColor(75, 85, 99); // Grey
+    doc.setFont("helvetica", "bold");
+    doc.text("Department:", 14, 40);
+    doc.setFont("helvetica", "normal");
+    doc.text(user?.department || 'Unknown Department', 40, 40);
+
+    doc.setFont("helvetica", "bold");
+    doc.text("Total Reported:", 110, 40);
+    doc.setFont("helvetica", "normal");
+    doc.text(`${yesterdayReported.length} Employees`, 140, 40);
+
+    doc.setFont("helvetica", "bold");
+    doc.text("Total Hours worked:", 110, 46);
+    doc.setFont("helvetica", "normal");
+    const totalHours = yesterdayReported.reduce((sum, g) => sum + g.reports.reduce((subSum, r) => subSum + parseHours(r.hours_worked), 0), 0);
+    doc.text(`${totalHours.toFixed(1)} hrs`, 150, 46);
+
+    doc.setFont("helvetica", "bold");
+    doc.text("Total Backlog:", 14, 46);
+    doc.setFont("helvetica", "normal");
+    doc.text(`${yesterdayNotReported.length} Employees`, 40, 46);
+
+    doc.line(14, 52, 196, 52);
+
+    // Table Data
+    const tableBody: any[] = [];
+    let sNo = 1;
+    yesterdayReported.forEach((group) => {
+      const empName = group.employee.name;
+      const empId = group.employee.employee_id;
+      group.reports.forEach((r) => {
+        const desc = extractTaskDescription(r.work_description);
+        tableBody.push([
+          sNo++,
+          `${empName}\n(${empId})`,
+          r.task_name,
+          desc,
+          `${r.hours_worked} hrs`
+        ]);
+      });
+    });
+
+    (doc as any).autoTable({
+      startY: 56,
+      head: [['S.No', 'Employee', 'Project', 'Task Description', 'Duration']],
+      body: tableBody,
+      theme: 'grid',
+      headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontStyle: 'bold' },
+      styles: { fontSize: 9, cellPadding: 4, overflow: 'linebreak' },
+      columnStyles: {
+        0: { cellWidth: 10 },
+        1: { cellWidth: 35 },
+        2: { cellWidth: 35 },
+        3: { cellWidth: 'auto' },
+        4: { cellWidth: 20 }
+      }
+    });
+
+    const pdfDataUri = doc.output('datauristring');
+    const base64Str = pdfDataUri.split(',')[1];
+    return base64Str;
   };
 
   const generateReportHtml = (): string => {
@@ -449,6 +504,8 @@ export default function ReportsScreen() {
 
     setEmailSending(true);
     try {
+      const jspdfModule = await loadJsPDFLibrary();
+
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       const dateStr = yesterday.toISOString().split('T')[0];
@@ -467,8 +524,7 @@ export default function ReportsScreen() {
       const totalHours = yesterdayReported.reduce((sum, g) => sum + g.reports.reduce((subSum, r) => subSum + parseHours(r.hours_worked), 0), 0);
       const body = `Hi,\n\nHere is the consolidated work report for yesterday (${dateStr}):\n\n${tasksText}Total Hours Worked across Department: ${totalHours.toFixed(1)} hrs\n\nBest regards,\nDepartment Head`;
 
-      const htmlContent = generateReportHtml();
-      const pdfBase64 = await generatePDFBase64FromHtml(htmlContent);
+      const pdfBase64 = generatePDFBase64(jspdfModule);
 
       const serverHost = Platform.OS === 'web' ? window.location.hostname : 'localhost';
       const apiUrl = `http://${serverHost}:8001/api/send-consolidated-report`;
