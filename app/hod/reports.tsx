@@ -21,8 +21,20 @@ export default function ReportsScreen() {
   const [reportType, setReportType] = useState<'projects' | 'employees' | ''>('');
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
-  const [customStartDate, setCustomStartDate] = useState('');
-  const [customEndDate, setCustomEndDate] = useState('');
+
+  // Default date range: last 7 days
+  const defaultStart = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return d.toISOString().split('T')[0];
+  }, []);
+
+  const defaultEnd = useMemo(() => {
+    return new Date().toISOString().split('T')[0];
+  }, []);
+
+  const [customStartDate, setCustomStartDate] = useState(defaultStart);
+  const [customEndDate, setCustomEndDate] = useState(defaultEnd);
   const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(new Set());
   const [selectedEmployeeDetails, setSelectedEmployeeDetails] = useState<{ employee: any, reports: DailyReport[] } | null>(null);
   const [departmentEmployees, setDepartmentEmployees] = useState<any[]>([]);
@@ -90,6 +102,13 @@ export default function ReportsScreen() {
       } else if (filter === 'monthly') {
         const lastMonth = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
         fetchParams = { dateFrom: lastMonth.toISOString().split('T')[0] };
+      } else if (filter === 'custom') {
+        if (!customStartDate || !customEndDate) {
+          Alert.alert("Date Required", "Please enter both From and To dates.");
+          setLoading(false);
+          return;
+        }
+        fetchParams = { dateFrom: customStartDate, dateTo: customEndDate };
       } else if (filter === 'reports') {
         // No date filter, fetches all time for this department
       }
@@ -122,12 +141,12 @@ export default function ReportsScreen() {
       ] as any}
       onPress={() => {
         setFilter(status);
-        if (status !== 'reports') {
+        if (status !== 'reports' && status !== 'custom') {
           setReportType('');
           setSelectedProjectId('');
           setSelectedEmployeeId('');
-          setCustomStartDate('');
-          setCustomEndDate('');
+          setCustomStartDate(defaultStart);
+          setCustomEndDate(defaultEnd);
         }
       }}
     >
@@ -212,6 +231,26 @@ export default function ReportsScreen() {
     return Object.values(groups).sort((a, b) => a.employee.name.localeCompare(b.employee.name));
   }, [filteredReportsForDisplay, departmentEmployees, filter, reportType, selectedEmployeeId]);
 
+  const getCurrentDateRangeStr = (): string => {
+    if (filter === 'yesterday') {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      return yesterday.toISOString().split('T')[0];
+    } else if (filter === 'weekly') {
+      const today = new Date();
+      const lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+      return `${lastWeek.toISOString().split('T')[0]} to ${today.toISOString().split('T')[0]}`;
+    } else if (filter === 'monthly') {
+      const today = new Date();
+      const lastMonth = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+      return `${lastMonth.toISOString().split('T')[0]} to ${today.toISOString().split('T')[0]}`;
+    } else if (filter === 'custom') {
+      return `${customStartDate || 'Start'} to ${customEndDate || 'End'}`;
+    } else {
+      return 'All Time';
+    }
+  };
+
   const yesterdayReported = useMemo(() => {
     return groupedReports.filter(g => g.reports.length > 0);
   }, [groupedReports]);
@@ -254,9 +293,7 @@ export default function ReportsScreen() {
     }
 
     const doc = new jsPDFConstructor();
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const dateStr = yesterday.toISOString().split('T')[0];
+    const dateStr = getCurrentDateRangeStr();
 
     // Document Header
     doc.setFontSize(20);
@@ -405,11 +442,8 @@ export default function ReportsScreen() {
   };
 
   const generateReportHtml = (): string => {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const dateStr = yesterday.toISOString().split('T')[0];
-
-    const title = `Consolidated_Daily_Report_${dateStr}`;
+    const dateStr = getCurrentDateRangeStr();
+    const title = `Consolidated_Report_${dateStr.replace(/ /g, '_')}`;
 
     let rowsHtml = "";
     let sNo = 1;
@@ -548,7 +582,7 @@ export default function ReportsScreen() {
           <tr>
             <td style="text-align: left; padding: 0 0 10px 0; border: none;">
               <h1 class="college-title">BARANI REPORTING SYSTEM</h1>
-              <h2 class="report-title">Consolidated Daily Work Report</h2>
+              <h2 class="report-title">${filter === 'yesterday' ? 'Consolidated Daily Work Report' : 'Consolidated Work Report'}</h2>
             </td>
             <td style="text-align: right; vertical-align: bottom; padding: 0 0 10px 0; border: none;">
               <div style="font-size: 14px; font-weight: 700; color: #3B82F6; letter-spacing: 0.5px;">DATE: ${dateStr}</div>
@@ -621,11 +655,9 @@ export default function ReportsScreen() {
     try {
       const jspdfModule = await loadJsPDFLibrary();
 
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const dateStr = yesterday.toISOString().split('T')[0];
+      const dateStr = getCurrentDateRangeStr();
 
-      const body = `Hi,\n\nPlease find attached the consolidated work report for yesterday (${dateStr}).\n\nBest regards,\nDepartment Head`;
+      const body = `Hi,\n\nPlease find attached the consolidated work report for ${dateStr}.\n\nBest regards,\nDepartment Head`;
 
       const pdfBase64 = generatePDFBase64(jspdfModule);
 
@@ -639,9 +671,9 @@ export default function ReportsScreen() {
         },
         body: JSON.stringify({
           recipients: recipientEmails.split(',').map(e => e.trim()),
-          date: dateStr,
+          date: dateStr.replace(/ /g, '_'),
           pdfBase64,
-          subject: `Yesterday's Consolidated Work Report (${dateStr})`,
+          subject: `Consolidated Work Report (${dateStr})`,
           body
         })
       });
@@ -988,6 +1020,7 @@ export default function ReportsScreen() {
           <View style={styles.filtersInline}>
             {renderFilter('all', 'All')}
             {renderFilter('yesterday', 'Yesterday')}
+            {renderFilter('custom', 'Custom Range')}
             {renderFilter('reports', 'Reports')}
             {renderFilter('weekly', 'Weekly')}
             {renderFilter('monthly', 'Monthly')}
@@ -1099,6 +1132,45 @@ export default function ReportsScreen() {
         </View>
       )}
 
+      {filter === 'custom' && (
+        <View style={styles.filtersContainer}>
+          <View style={styles.customDateContainer}>
+            <View style={styles.filterRow}>
+              <View style={[styles.dateInputWrapper, { flex: 1 }]}>
+                <Ionicons name="calendar-outline" size={16} color={Brand.colors.textSecondary} />
+                <TextInput
+                  style={styles.dateInput}
+                  placeholder="Start Date (YYYY-MM-DD)"
+                  value={customStartDate}
+                  onChangeText={setCustomStartDate}
+                  placeholderTextColor={Brand.colors.textSecondary}
+                />
+              </View>
+              <View style={[styles.dateInputWrapper, { flex: 1 }]}>
+                <Ionicons name="calendar-outline" size={16} color={Brand.colors.textSecondary} />
+                <TextInput
+                  style={styles.dateInput}
+                  placeholder="End Date (YYYY-MM-DD)"
+                  value={customEndDate}
+                  onChangeText={setCustomEndDate}
+                  placeholderTextColor={Brand.colors.textSecondary}
+                />
+              </View>
+              <Pressable
+                style={({ hovered, pressed }) => [
+                  styles.applyBtnLarge,
+                  hovered && styles.applyBtnLargeHovered,
+                  pressed && { opacity: 0.7 }
+                ] as any}
+                onPress={() => loadReports()}
+              >
+                <Text style={styles.applyBtnTextLarge}>Fetch Reports</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
+
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={Brand.colors.primary} />
@@ -1190,7 +1262,7 @@ export default function ReportsScreen() {
             </View>
           )}
         </ScrollView>
-      ) : filter === 'yesterday' ? (
+      ) : (filter === 'yesterday' || filter === 'custom') ? (
         <View style={{ flex: 1 }}>
           <View style={[styles.yesterdayTabs, { justifyContent: 'space-between', alignItems: 'center' }]}>
             <View style={{ flexDirection: 'row', gap: 12 }}>
@@ -1222,18 +1294,20 @@ export default function ReportsScreen() {
 
             {yesterdaySubTab === 'reported' && (
               <View style={{ flexDirection: 'row', gap: 12 }}>
-                <Pressable
-                  style={({ hovered, pressed }) => [
-                    styles.actionBtn,
-                    styles.emailBtn,
-                    hovered && styles.emailBtnHovered,
-                    pressed && { opacity: 0.7 }
-                  ] as any}
-                  onPress={() => handleSendEmail('consolidated')}
-                >
-                  <Ionicons name="mail-outline" size={14} color="#FFF" />
-                  <Text style={styles.actionBtnText}>Consolidated Email</Text>
-                </Pressable>
+                {filter === 'yesterday' && (
+                  <Pressable
+                    style={({ hovered, pressed }) => [
+                      styles.actionBtn,
+                      styles.emailBtn,
+                      hovered && styles.emailBtnHovered,
+                      pressed && { opacity: 0.7 }
+                    ] as any}
+                    onPress={() => handleSendEmail('consolidated')}
+                  >
+                    <Ionicons name="mail-outline" size={14} color="#FFF" />
+                    <Text style={styles.actionBtnText}>Consolidated Email</Text>
+                  </Pressable>
+                )}
                 <Pressable
                   style={({ hovered, pressed }) => [
                     styles.actionBtn,
@@ -1261,7 +1335,9 @@ export default function ReportsScreen() {
                 keyExtractor={(item) => item.employee.id}
                 contentContainerStyle={styles.gridContainer}
                 ListEmptyComponent={
-                  <Text style={styles.emptyText}>No reports submitted yesterday.</Text>
+                  <Text style={styles.emptyText}>
+                    {filter === 'yesterday' ? 'No reports submitted yesterday.' : 'No reports submitted in this date range.'}
+                  </Text>
                 }
                 renderItem={({ item: group }) => {
                   const emp = group.employee;
