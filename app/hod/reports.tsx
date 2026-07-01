@@ -1262,7 +1262,7 @@ export default function ReportsScreen() {
             </View>
           )}
         </ScrollView>
-      ) : (filter === 'yesterday' || filter === 'custom') ? (
+      ) : filter === 'yesterday' ? (
         <View style={{ flex: 1 }}>
           <View style={[styles.yesterdayTabs, { justifyContent: 'space-between', alignItems: 'center' }]}>
             <View style={{ flexDirection: 'row', gap: 12 }}>
@@ -1420,6 +1420,25 @@ export default function ReportsScreen() {
           data={groupedReports}
           keyExtractor={(item) => item.employee.id}
           contentContainerStyle={styles.gridContainer}
+          ListHeaderComponent={
+            filter === 'custom' ? (
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', width: '100%', marginBottom: 16 }}>
+                <Pressable
+                  style={({ hovered, pressed }) => [
+                    styles.actionBtn,
+                    styles.pdfBtn,
+                    { paddingVertical: 10, paddingHorizontal: 16 },
+                    hovered && styles.pdfBtnHovered,
+                    pressed && { opacity: 0.7 }
+                  ] as any}
+                  onPress={handleExportPDF}
+                >
+                  <Ionicons name="document-text-outline" size={14} color="#FFF" />
+                  <Text style={styles.actionBtnText}>Export Consolidated PDF</Text>
+                </Pressable>
+              </View>
+            ) : null
+          }
           ListEmptyComponent={
             <Text style={styles.emptyText}>No reports found.</Text>
           }
@@ -1428,7 +1447,16 @@ export default function ReportsScreen() {
             const uniqueDays = new Set(group.reports.map(r => r.report_date)).size;
             const totalReports = group.reports.length;
             const totalHours = group.reports.reduce((sum, r) => sum + parseHours(r.hours_worked), 0);
-            const targetDays = filter === 'weekly' ? 6 : 26;
+            
+            let targetDays = filter === 'weekly' ? 6 : 26;
+            if (filter === 'custom' && customStartDate && customEndDate) {
+              const start = new Date(customStartDate);
+              const end = new Date(customEndDate);
+              const diffTime = Math.abs(end.getTime() - start.getTime());
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // inclusive
+              targetDays = diffDays;
+            }
+            
             const targetHours = targetDays * 8;
             const efficiency = ((totalHours / targetHours) * 100).toFixed(1);
 
