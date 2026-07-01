@@ -1119,25 +1119,61 @@ export default function ReportsScreen() {
               <View style={styles.filterRow}>
                 <View style={styles.dateInputWrapper}>
                   <Ionicons name="calendar-outline" size={16} color={Brand.colors.textSecondary} />
-                  <TextInput
-                    style={styles.dateInput}
-                    placeholder="Start Date (YYYY-MM-DD)"
-                    value={customStartDate}
-                    onChangeText={setCustomStartDate}
-                    placeholderTextColor={Brand.colors.textSecondary}
-                    {...(Platform.OS === 'web' ? { type: 'date' } as any : {})}
-                  />
+                  {Platform.OS === 'web' ? (
+                    <input
+                      type="date"
+                      value={customStartDate}
+                      onChange={(e) => setCustomStartDate(e.target.value)}
+                      style={{
+                        flex: 1,
+                        fontSize: 14,
+                        color: Brand.colors.text,
+                        height: '100%',
+                        border: 'none',
+                        outline: 'none',
+                        backgroundColor: 'transparent',
+                        width: '100%',
+                        fontFamily: 'inherit'
+                      }}
+                    />
+                  ) : (
+                    <TextInput
+                      style={styles.dateInput}
+                      placeholder="Start Date (YYYY-MM-DD)"
+                      value={customStartDate}
+                      onChangeText={setCustomStartDate}
+                      placeholderTextColor={Brand.colors.textSecondary}
+                    />
+                  )}
                 </View>
                 <View style={styles.dateInputWrapper}>
                   <Ionicons name="calendar-outline" size={16} color={Brand.colors.textSecondary} />
-                  <TextInput
-                    style={styles.dateInput}
-                    placeholder="End Date (YYYY-MM-DD)"
-                    value={customEndDate}
-                    onChangeText={setCustomEndDate}
-                    placeholderTextColor={Brand.colors.textSecondary}
-                    {...(Platform.OS === 'web' ? { type: 'date' } as any : {})}
-                  />
+                  {Platform.OS === 'web' ? (
+                    <input
+                      type="date"
+                      value={customEndDate}
+                      onChange={(e) => setCustomEndDate(e.target.value)}
+                      style={{
+                        flex: 1,
+                        fontSize: 14,
+                        color: Brand.colors.text,
+                        height: '100%',
+                        border: 'none',
+                        outline: 'none',
+                        backgroundColor: 'transparent',
+                        width: '100%',
+                        fontFamily: 'inherit'
+                      }}
+                    />
+                  ) : (
+                    <TextInput
+                      style={styles.dateInput}
+                      placeholder="End Date (YYYY-MM-DD)"
+                      value={customEndDate}
+                      onChangeText={setCustomEndDate}
+                      placeholderTextColor={Brand.colors.textSecondary}
+                    />
+                  )}
                 </View>
               </View>
             )}
@@ -1151,25 +1187,61 @@ export default function ReportsScreen() {
             <View style={styles.filterRow}>
               <View style={[styles.dateInputWrapper, { flex: 1 }]}>
                 <Ionicons name="calendar-outline" size={16} color={Brand.colors.textSecondary} />
-                <TextInput
-                  style={styles.dateInput}
-                  placeholder="Start Date (YYYY-MM-DD)"
-                  value={customStartDate}
-                  onChangeText={setCustomStartDate}
-                  placeholderTextColor={Brand.colors.textSecondary}
-                  {...(Platform.OS === 'web' ? { type: 'date' } as any : {})}
-                />
+                {Platform.OS === 'web' ? (
+                  <input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                    style={{
+                      flex: 1,
+                      fontSize: 14,
+                      color: Brand.colors.text,
+                      height: '100%',
+                      border: 'none',
+                      outline: 'none',
+                      backgroundColor: 'transparent',
+                      width: '100%',
+                      fontFamily: 'inherit'
+                    }}
+                  />
+                ) : (
+                  <TextInput
+                    style={styles.dateInput}
+                    placeholder="Start Date (YYYY-MM-DD)"
+                    value={customStartDate}
+                    onChangeText={setCustomStartDate}
+                    placeholderTextColor={Brand.colors.textSecondary}
+                  />
+                )}
               </View>
               <View style={[styles.dateInputWrapper, { flex: 1 }]}>
                 <Ionicons name="calendar-outline" size={16} color={Brand.colors.textSecondary} />
-                <TextInput
-                  style={styles.dateInput}
-                  placeholder="End Date (YYYY-MM-DD)"
-                  value={customEndDate}
-                  onChangeText={setCustomEndDate}
-                  placeholderTextColor={Brand.colors.textSecondary}
-                  {...(Platform.OS === 'web' ? { type: 'date' } as any : {})}
-                />
+                {Platform.OS === 'web' ? (
+                  <input
+                    type="date"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                    style={{
+                      flex: 1,
+                      fontSize: 14,
+                      color: Brand.colors.text,
+                      height: '100%',
+                      border: 'none',
+                      outline: 'none',
+                      backgroundColor: 'transparent',
+                      width: '100%',
+                      fontFamily: 'inherit'
+                    }}
+                  />
+                ) : (
+                  <TextInput
+                    style={styles.dateInput}
+                    placeholder="End Date (YYYY-MM-DD)"
+                    value={customEndDate}
+                    onChangeText={setCustomEndDate}
+                    placeholderTextColor={Brand.colors.textSecondary}
+                  />
+                )}
               </View>
               <Pressable
                 style={({ hovered, pressed }) => [
