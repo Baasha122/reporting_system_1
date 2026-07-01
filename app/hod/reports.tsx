@@ -1185,8 +1185,8 @@ export default function ReportsScreen() {
         <View style={styles.filtersContainer}>
           <View style={styles.customDateContainer}>
             <View style={styles.filterRow}>
-              <View style={[styles.dateInputWrapper, { flex: 1 }]}>
-                <Ionicons name="calendar-outline" size={16} color={Brand.colors.textSecondary} />
+              <View style={[styles.dateInputWrapper, { flex: undefined, width: 180, height: 40, paddingHorizontal: 12 }]}>
+                <Ionicons name="calendar-outline" size={14} color={Brand.colors.textSecondary} />
                 {Platform.OS === 'web' ? (
                   <input
                     type="date"
@@ -1194,7 +1194,7 @@ export default function ReportsScreen() {
                     onChange={(e) => setCustomStartDate(e.target.value)}
                     style={{
                       flex: 1,
-                      fontSize: 14,
+                      fontSize: 13,
                       color: Brand.colors.text,
                       height: '100%',
                       border: 'none',
@@ -1206,7 +1206,7 @@ export default function ReportsScreen() {
                   />
                 ) : (
                   <TextInput
-                    style={styles.dateInput}
+                    style={[styles.dateInput, { fontSize: 13 }]}
                     placeholder="Start Date (YYYY-MM-DD)"
                     value={customStartDate}
                     onChangeText={setCustomStartDate}
@@ -1214,8 +1214,8 @@ export default function ReportsScreen() {
                   />
                 )}
               </View>
-              <View style={[styles.dateInputWrapper, { flex: 1 }]}>
-                <Ionicons name="calendar-outline" size={16} color={Brand.colors.textSecondary} />
+              <View style={[styles.dateInputWrapper, { flex: undefined, width: 180, height: 40, paddingHorizontal: 12 }]}>
+                <Ionicons name="calendar-outline" size={14} color={Brand.colors.textSecondary} />
                 {Platform.OS === 'web' ? (
                   <input
                     type="date"
@@ -1223,7 +1223,7 @@ export default function ReportsScreen() {
                     onChange={(e) => setCustomEndDate(e.target.value)}
                     style={{
                       flex: 1,
-                      fontSize: 14,
+                      fontSize: 13,
                       color: Brand.colors.text,
                       height: '100%',
                       border: 'none',
@@ -1235,7 +1235,7 @@ export default function ReportsScreen() {
                   />
                 ) : (
                   <TextInput
-                    style={styles.dateInput}
+                    style={[styles.dateInput, { fontSize: 13 }]}
                     placeholder="End Date (YYYY-MM-DD)"
                     value={customEndDate}
                     onChangeText={setCustomEndDate}
@@ -1246,27 +1246,28 @@ export default function ReportsScreen() {
               <Pressable
                 style={({ hovered, pressed }) => [
                   styles.applyBtnLarge,
+                  { height: 40, paddingHorizontal: 16, borderRadius: 6 },
                   hovered && styles.applyBtnLargeHovered,
                   pressed && { opacity: 0.7 }
                 ] as any}
                 onPress={() => loadReports(true)}
               >
-                <Text style={styles.applyBtnTextLarge}>Fetch Reports</Text>
+                <Text style={[styles.applyBtnTextLarge, { fontSize: 14 }]}>Fetch Reports</Text>
               </Pressable>
 
               {hasFetched && (
                 <Pressable
                   style={({ hovered, pressed }) => [
                     styles.applyBtnLarge,
-                    { backgroundColor: '#DC2626', shadowColor: '#DC2626' },
+                    { height: 40, paddingHorizontal: 16, borderRadius: 6, backgroundColor: '#DC2626', shadowColor: '#DC2626' },
                     hovered && { opacity: 0.9 },
                     pressed && { opacity: 0.7 }
                   ] as any}
                   onPress={handleExportPDF}
                 >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Ionicons name="document-text-outline" size={16} color="#FFF" />
-                    <Text style={styles.applyBtnTextLarge}>Export Consolidated PDF</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="document-text-outline" size={14} color="#FFF" />
+                    <Text style={[styles.applyBtnTextLarge, { fontSize: 14 }]}>Export Consolidated PDF</Text>
                   </View>
                 </Pressable>
               )}
