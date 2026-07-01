@@ -1865,7 +1865,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 14,
   },
-  filtersContainer: { gap: 24 },
+  filtersContainer: { gap: 24, marginBottom: 20 },
   filters: { flexDirection: 'row', gap: 16, flexWrap: 'wrap' },
   filterChip: {
     paddingHorizontal: 16,
