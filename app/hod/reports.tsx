@@ -353,7 +353,7 @@ export default function ReportsScreen() {
 
     let currentY = 48;
 
-    if (sortedBacklog.length > 0) {
+    if (sortedBacklog.length > 0 && filter !== 'custom') {
       const backlogNames = sortedBacklog.map(item => `- ${item.employee?.name || 'Unknown'}`);
       
       const backlogTableBody: any[] = [];
@@ -504,7 +504,7 @@ export default function ReportsScreen() {
     );
 
     let backlogBlockHtml = "";
-    if (htmlSortedBacklog.length > 0) {
+    if (htmlSortedBacklog.length > 0 && filter !== 'custom') {
       backlogBlockHtml = `
         <div style="margin-bottom: 25px; border: 1.5px solid #FCA5A5; background-color: #FEF2F2; padding: 14px; border-radius: 8px;">
           <h3 style="margin-top: 0; margin-bottom: 10px; color: #DC2626; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
