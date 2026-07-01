@@ -1253,6 +1253,23 @@ export default function ReportsScreen() {
               >
                 <Text style={styles.applyBtnTextLarge}>Fetch Reports</Text>
               </Pressable>
+
+              {hasFetched && (
+                <Pressable
+                  style={({ hovered, pressed }) => [
+                    styles.applyBtnLarge,
+                    { backgroundColor: '#DC2626', shadowColor: '#DC2626' },
+                    hovered && { opacity: 0.9 },
+                    pressed && { opacity: 0.7 }
+                  ] as any}
+                  onPress={handleExportPDF}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Ionicons name="document-text-outline" size={16} color="#FFF" />
+                    <Text style={styles.applyBtnTextLarge}>Export Consolidated PDF</Text>
+                  </View>
+                </Pressable>
+              )}
             </View>
           </View>
         </View>
@@ -1515,25 +1532,6 @@ export default function ReportsScreen() {
             data={groupedReports}
             keyExtractor={(item) => item.employee.id}
             contentContainerStyle={styles.gridContainer}
-          ListHeaderComponent={
-            filter === 'custom' ? (
-              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', width: '100%', marginBottom: 16 }}>
-                <Pressable
-                  style={({ hovered, pressed }) => [
-                    styles.actionBtn,
-                    styles.pdfBtn,
-                    { paddingVertical: 10, paddingHorizontal: 16 },
-                    hovered && styles.pdfBtnHovered,
-                    pressed && { opacity: 0.7 }
-                  ] as any}
-                  onPress={handleExportPDF}
-                >
-                  <Ionicons name="document-text-outline" size={14} color="#FFF" />
-                  <Text style={styles.actionBtnText}>Export Consolidated PDF</Text>
-                </Pressable>
-              </View>
-            ) : null
-          }
           ListEmptyComponent={
             <Text style={styles.emptyText}>No reports found.</Text>
           }
