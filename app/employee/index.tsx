@@ -37,6 +37,7 @@ export default function EmployeeDashboard() {
   const [workOrderNo, setWorkOrderNo] = useState(draft?.workOrderNo || '');
   const [customCustomerName, setCustomCustomerName] = useState(draft?.customCustomerName || '');
   const [machineName, setMachineName] = useState(draft?.machineName || '');
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
   // Identify selected project characteristics
   const selectedProjObj = useMemo(() => {
@@ -222,9 +223,20 @@ export default function EmployeeDashboard() {
       startTime,
       endTime,
       rawDescription: description,
+      workOrderNo: isServiceYear ? workOrderNo.trim() : '',
+      customCustomerName: isServiceYear ? customCustomerName.trim() : '',
+      machineName: isMaintenance ? machineName.trim() : '',
     };
 
-    const newTasks = [...dailyTasks, newTask];
+    let newTasks = [];
+    if (editingIndex !== null) {
+      newTasks = [...dailyTasks];
+      newTasks[editingIndex] = newTask;
+      setEditingIndex(null);
+    } else {
+      newTasks = [...dailyTasks, newTask];
+    }
+    
     setDailyTasks(newTasks);
     if (user?.id) {
       AsyncStorage.setItem(`@dailyTasks_${user.id}`, JSON.stringify(newTasks)).catch(err => console.error("Failed to save tasks", err));
@@ -251,6 +263,45 @@ export default function EmployeeDashboard() {
         customCustomerName: '',
         machineName: ''
       };
+    }
+  };
+
+  const handleEditTask = (index: number) => {
+    const task = dailyTasks[index];
+    setDescription(task.rawDescription || '');
+    setStartTime(task.startTime || '09:00');
+    setEndTime(task.endTime || '10:00');
+    setDuration(task.duration || '');
+    setSelectedProject(task.projectId || '');
+    setWorkOrderNo(task.workOrderNo || '');
+    setCustomCustomerName(task.customCustomerName || '');
+    setMachineName(task.machineName || '');
+    setEditingIndex(index);
+  };
+
+  const handleCancelEdit = () => {
+    setDescription('');
+    setStartTime('09:00');
+    setEndTime('10:00');
+    setDuration('');
+    setSelectedProject('');
+    setWorkOrderNo('');
+    setCustomCustomerName('');
+    setMachineName('');
+    setEditingIndex(null);
+  };
+
+  const handleDeleteTask = (index: number) => {
+    if (editingIndex === index) {
+      handleCancelEdit();
+    } else if (editingIndex !== null && editingIndex > index) {
+      setEditingIndex(editingIndex - 1);
+    }
+
+    const updatedTasks = dailyTasks.filter((_, i) => i !== index);
+    setDailyTasks(updatedTasks);
+    if (user?.id) {
+      AsyncStorage.setItem(`@dailyTasks_${user.id}`, JSON.stringify(updatedTasks)).catch(err => console.error("Failed to save tasks", err));
     }
   };
 
@@ -418,18 +469,40 @@ export default function EmployeeDashboard() {
         
         {isDesktop && (
           <View style={styles.addButtonWrapper}>
-            <TouchableOpacity style={styles.addButton} onPress={handleAddTask}>
-              <Text style={styles.addButtonText}>add</Text>
-            </TouchableOpacity>
+            {editingIndex !== null ? (
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <TouchableOpacity style={[styles.addButton, { backgroundColor: '#10B981', borderColor: '#10B981' }]} onPress={handleAddTask}>
+                  <Text style={styles.addButtonText}>Update</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.addButton, { backgroundColor: '#6B7280', borderColor: '#6B7280' }]} onPress={handleCancelEdit}>
+                  <Text style={styles.addButtonText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity style={styles.addButton} onPress={handleAddTask}>
+                <Text style={styles.addButtonText}>add</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
       </View>
 
       {!isDesktop && (
         <View style={styles.mobileAddBtnContainer}>
-          <TouchableOpacity style={styles.mobileAddBtn} onPress={handleAddTask}>
-            <Text style={styles.mobileAddBtnText}>Add Task</Text>
-          </TouchableOpacity>
+          {editingIndex !== null ? (
+            <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
+              <TouchableOpacity style={[styles.mobileAddBtn, { flex: 1, backgroundColor: '#10B981' }]} onPress={handleAddTask}>
+                <Text style={styles.mobileAddBtnText}>Update Task</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.mobileAddBtn, { flex: 1, backgroundColor: '#6B7280' }]} onPress={handleCancelEdit}>
+                <Text style={styles.mobileAddBtnText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity style={styles.mobileAddBtn} onPress={handleAddTask}>
+              <Text style={styles.mobileAddBtnText}>Add Task</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
     </>
@@ -442,7 +515,8 @@ export default function EmployeeDashboard() {
         <View style={styles.tableHeaderRow}>
           <Text style={[styles.tableHeaderCell, { flex: 0.5, textAlign: 'center' }]}>S.NO</Text>
           <Text style={[styles.tableHeaderCell, { flex: 3 }]}>Tasks</Text>
-          <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: 'center' }]}>Duration</Text>
+          <Text style={[styles.tableHeaderCell, { flex: 0.8, textAlign: 'center' }]}>Duration</Text>
+          <Text style={[styles.tableHeaderCell, { flex: 1.2, textAlign: 'center' }]}>Actions</Text>
         </View>
         
         {dailyTasks.length === 0 ? (
@@ -456,7 +530,15 @@ export default function EmployeeDashboard() {
               <Text style={[styles.tableCell, { flex: 3 }]} numberOfLines={2}>
                 <Text style={{fontWeight: '600'}}>{task.taskName}</Text>: {task.rawDescription}
               </Text>
-              <Text style={[styles.tableCell, { flex: 1, textAlign: 'center' }]}>{task.duration}</Text>
+              <Text style={[styles.tableCell, { flex: 0.8, textAlign: 'center' }]}>{task.duration}</Text>
+              <View style={[styles.tableCell, { flex: 1.2, flexDirection: 'row', justifyContent: 'center', gap: 12, alignItems: 'center', borderRightWidth: 0 }]}>
+                <TouchableOpacity onPress={() => handleEditTask(index)}>
+                  <Ionicons name="create-outline" size={18} color="#0056FF" />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => handleDeleteTask(index)}>
+                  <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                </TouchableOpacity>
+              </View>
             </View>
           ))
         )}
