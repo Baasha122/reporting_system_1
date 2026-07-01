@@ -35,6 +35,7 @@ export default function ReportsScreen() {
 
   const [customStartDate, setCustomStartDate] = useState(defaultStart);
   const [customEndDate, setCustomEndDate] = useState(defaultEnd);
+  const [hasFetched, setHasFetched] = useState(false);
   const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(new Set());
   const [selectedEmployeeDetails, setSelectedEmployeeDetails] = useState<{ employee: any, reports: DailyReport[] } | null>(null);
   const [departmentEmployees, setDepartmentEmployees] = useState<any[]>([]);
@@ -66,7 +67,13 @@ export default function ReportsScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
 
-  const loadReports = async () => {
+  const loadReports = async (isManualCustomFetch = false) => {
+    if (filter === 'custom' && !isManualCustomFetch) {
+      setReports([]);
+      setHasFetched(false);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       // 1. Fetch all employees in this department
@@ -114,6 +121,9 @@ export default function ReportsScreen() {
       }
       const data = await fetchReports(fetchParams);
       setReports(data || []);
+      if (filter === 'custom') {
+        setHasFetched(true);
+      }
       setSelectedEmployees(new Set());
     } catch (error) {
       console.error('Error loading reports:', error);
@@ -141,6 +151,7 @@ export default function ReportsScreen() {
       ] as any}
       onPress={() => {
         setFilter(status);
+        setHasFetched(false);
         if (status !== 'reports' && status !== 'custom') {
           setReportType('');
           setSelectedProjectId('');
@@ -1162,7 +1173,7 @@ export default function ReportsScreen() {
                   hovered && styles.applyBtnLargeHovered,
                   pressed && { opacity: 0.7 }
                 ] as any}
-                onPress={() => loadReports()}
+                onPress={() => loadReports(true)}
               >
                 <Text style={styles.applyBtnTextLarge}>Fetch Reports</Text>
               </Pressable>
@@ -1413,13 +1424,21 @@ export default function ReportsScreen() {
           )}
         </View>
       ) : (
-        <FlatList
-          key={numColumns}
-          numColumns={numColumns}
-          columnWrapperStyle={numColumns > 1 ? styles.rowWrapper : undefined}
-          data={groupedReports}
-          keyExtractor={(item) => item.employee.id}
-          contentContainerStyle={styles.gridContainer}
+        filter === 'custom' && !hasFetched ? (
+          <View style={[styles.center, { padding: 40, minHeight: 200, backgroundColor: Brand.colors.card, borderRadius: 12 }]}>
+            <Ionicons name="calendar-outline" size={48} color={Brand.colors.textSecondary} style={{ marginBottom: 12 }} />
+            <Text style={{ fontSize: 16, fontWeight: '600', color: Brand.colors.textSecondary, textAlign: 'center' }}>
+              Please enter the date range and click "Fetch Reports" to load the work reports.
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            key={numColumns}
+            numColumns={numColumns}
+            columnWrapperStyle={numColumns > 1 ? styles.rowWrapper : undefined}
+            data={groupedReports}
+            keyExtractor={(item) => item.employee.id}
+            contentContainerStyle={styles.gridContainer}
           ListHeaderComponent={
             filter === 'custom' ? (
               <View style={{ flexDirection: 'row', justifyContent: 'flex-end', width: '100%', marginBottom: 16 }}>
@@ -1527,7 +1546,8 @@ export default function ReportsScreen() {
             );
           }}
         />
-      )}
+      )
+    )}
 
       {/* Employee Working Details Modal */}
       <Modal
