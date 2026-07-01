@@ -1125,6 +1125,7 @@ export default function ReportsScreen() {
                     value={customStartDate}
                     onChangeText={setCustomStartDate}
                     placeholderTextColor={Brand.colors.textSecondary}
+                    {...(Platform.OS === 'web' ? { type: 'date' } as any : {})}
                   />
                 </View>
                 <View style={styles.dateInputWrapper}>
@@ -1135,6 +1136,7 @@ export default function ReportsScreen() {
                     value={customEndDate}
                     onChangeText={setCustomEndDate}
                     placeholderTextColor={Brand.colors.textSecondary}
+                    {...(Platform.OS === 'web' ? { type: 'date' } as any : {})}
                   />
                 </View>
               </View>
@@ -1155,6 +1157,7 @@ export default function ReportsScreen() {
                   value={customStartDate}
                   onChangeText={setCustomStartDate}
                   placeholderTextColor={Brand.colors.textSecondary}
+                  {...(Platform.OS === 'web' ? { type: 'date' } as any : {})}
                 />
               </View>
               <View style={[styles.dateInputWrapper, { flex: 1 }]}>
@@ -1165,6 +1168,7 @@ export default function ReportsScreen() {
                   value={customEndDate}
                   onChangeText={setCustomEndDate}
                   placeholderTextColor={Brand.colors.textSecondary}
+                  {...(Platform.OS === 'web' ? { type: 'date' } as any : {})}
                 />
               </View>
               <Pressable
